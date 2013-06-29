@@ -1,0 +1,15 @@
+{
+	"name": "ttgl",
+	"description": "A OpenGL learning initiative",
+	"authors": ["Xentec"],
+	"license": "MIT",
+
+	"dependencies": {
+		"derelict": "~master"
+	},
+	"importPaths": ["import"],
+	"libs-posix": ["dl"],
+
+	"targetType": "executable",
+	"targetPath": "bin"
+}
