@@ -2,6 +2,8 @@ module ttgl.app;
 
 import std.stdio;
 import std.conv : to;
+import std.math;
+import std.datetime;
 
 import derelict.glfw3.glfw3;
 import derelict.opengl3.gl;
@@ -71,10 +73,11 @@ int main(string[] args) {
 	const char* fragmentSource = 
 		`	#version 150
 
+			uniform vec3 triangleColor;
 			out vec4 outColor;
 
 			void main() {
-				outColor = vec4(1.0, 1.0, 1.0, 1.0); // Just paint them white
+				outColor = vec4(triangleColor, 1.0); // "triangleColor, you manage the color!"
 			}
 		`;
 
@@ -133,16 +136,24 @@ int main(string[] args) {
 	GLuint posAttrib = glGetAttribLocation(shaderProgram, "position");
 	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, null);
 	glEnableVertexAttribArray(posAttrib);
-	
+
+	// Setting link to our color manager
+	GLuint uniColor = glGetUniformLocation(shaderProgram, "triangleColor");
+
 	//##################################
 	//##################################
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
 		//##############
-		
+
+		// Let's see it blink in green
+		float time = glfwGetTime(); // or Clock.currAppTick.to!("seconds", float); for D's implementation
+		glUniform3f(uniColor, 0.0f, 0.5f * (sin(time * 4.0) + 1.0f), 0.0f);
+
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		
+
+		// Draw it!
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		//##############
