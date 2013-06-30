@@ -48,7 +48,7 @@ int main(string[] args) {
 	// OpenGL = on
 	glfwMakeContextCurrent(window);
 
-	// Sometimes loading everything is not just not enough
+	// Sometimes loading everything is just not enough
 	DerelictGL3.reload();
 	//##################################
 	//##################################
@@ -59,7 +59,7 @@ int main(string[] args) {
 		0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // Vertex 2: Green
 		-0.5f, -0.5f, 0.0f, 0.0f, 1.0f  // Vertex 3: Blue
 	];
-	
+
 	const char* vertexSource = 
 		`	#version 150
 
@@ -147,6 +147,8 @@ int main(string[] args) {
 
 	//##################################
 	//##################################
+	uint frames;
+	ulong ticks_ms = Clock.currAppTick.msecs;
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
 		//##############
@@ -162,6 +164,14 @@ int main(string[] args) {
 		glfwSwapBuffers(window);
 		// and wait for more to come
 		glfwPollEvents();
+
+		if(Clock.currAppTick.msecs > ticks_ms + 1000) {
+			glfwSetWindowTitle(window, (APPNAME ~ " - FPS: " ~ to!string(frames)).ptr);
+			ticks_ms = Clock.currAppTick.msecs;
+			frames = 0;
+		}
+
+		frames++;
 	}
 	
 	writeln("Exiting...");
