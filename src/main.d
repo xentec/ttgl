@@ -55,17 +55,20 @@ int main(string[] args) {
 
 	// Our triangle
 	float vertices[] = [
-		0.0f,	0.5f,	// Vertex 1 (X, Y)
-		0.5f,	-0.5f,	// Vertex 2 (X, Y)
-		-0.5f,	-0.5f,	// Vertex 3 (X, Y)
+		0.0f,  0.5f, 1.0f, 0.0f, 0.0f, // Vertex 1: Red
+		0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // Vertex 2: Green
+		-0.5f, -0.5f, 0.0f, 0.0f, 1.0f  // Vertex 3: Blue
 	];
 	
 	const char* vertexSource = 
 		`	#version 150
 
 			in vec2 position;
+			in vec3 col;
+			out vec3 color;
 
 			void main()	{
+				color = col;	// Just passing by
 				gl_Position = vec4(position, 0.0, 1.0); //Put vertices in right position
 			}
 		`;
@@ -73,11 +76,11 @@ int main(string[] args) {
 	const char* fragmentSource = 
 		`	#version 150
 
-			uniform vec3 triangleColor;
+			in vec3 color;
 			out vec4 outColor;
 
 			void main() {
-				outColor = vec4(triangleColor, 1.0); // "triangleColor, you manage the color!"
+				outColor = vec4(color, 1.0); // Color per vertex = rainbow triangle
 			}
 		`;
 
@@ -134,21 +137,19 @@ int main(string[] args) {
 
 	// Tell our vertex shader how to use the vertices from our VBO
 	GLuint posAttrib = glGetAttribLocation(shaderProgram, "position");
-	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, null);
 	glEnableVertexAttribArray(posAttrib);
+	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5 * float.sizeof, null);
 
-	// Setting link to our color manager
-	GLuint uniColor = glGetUniformLocation(shaderProgram, "triangleColor");
+	// ...and how to color them
+	GLuint colAttrib = glGetAttribLocation(shaderProgram, "col");
+	glEnableVertexAttribArray(colAttrib);
+	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5 * float.sizeof, cast(void*) (2 * float.sizeof));
 
 	//##################################
 	//##################################
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
 		//##############
-
-		// Let's see it blink in green
-		float time = glfwGetTime(); // or Clock.currAppTick.to!("seconds", float); for D's implementation
-		glUniform3f(uniColor, 0.0f, 0.5f * (sin(time * 4.0) + 1.0f), 0.0f);
 
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
