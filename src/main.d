@@ -1,7 +1,7 @@
 module ttgl.app;
 
 import std.stdio;
-import std.conv : to;
+import std.conv : text;
 import std.math;
 import std.datetime;
 
@@ -12,7 +12,7 @@ enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
 
 int main(string[] args) {
-	writeln(APPNAME ~ " " ~ to!string(VERSION["major"]) ~ "." ~ to!string(VERSION["minor"]));
+	writeln(APPNAME, " ", VERSION["major"], ".",VERSION["minor"]);
 
 	// Don't forget to say good bye (scopes are executed in reverse order)
 	scope(success) writeln("Have a nice day!");
@@ -121,7 +121,7 @@ int main(string[] args) {
 		throw new Exception("<");
 	} else
 		writeln("DONE");
-	
+
 	write("\tFragment... ");
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	scope(exit) glDeleteShader(fragmentShader);
@@ -157,8 +157,9 @@ int main(string[] args) {
 
 	//##################################
 	//##################################
-	uint frames;
-	ulong ticks_ms = Clock.currAppTick.msecs;
+	uint frames, frames_old;
+	string frames_p = "~+-";
+	ulong ticks_ms = Clock.currAppTick.seconds;
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
 		//##############
@@ -175,15 +176,17 @@ int main(string[] args) {
 		// and wait for more to come
 		glfwPollEvents();
 
-		if(Clock.currAppTick.msecs > ticks_ms + 1000) {
-			glfwSetWindowTitle(window, (APPNAME ~ " - FPS: " ~ to!string(frames)).ptr);
-			ticks_ms = Clock.currAppTick.msecs;
+		if(Clock.currAppTick.seconds != ticks_ms) {
+			byte f = frames == frames_old ? 0 : frames > frames_old ? 1 : 2;
+			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames, '\0').ptr);
+			ticks_ms = Clock.currAppTick.seconds;
+			frames_old = frames;
 			frames = 0;
 		}
 
 		frames++;
 	}
-	
+
 	writeln("Exiting...");
 	// Don't forget the scopes! ^
 	return 0;
