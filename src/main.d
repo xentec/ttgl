@@ -8,6 +8,8 @@ import std.datetime;
 import derelict.glfw3.glfw3;
 import derelict.opengl3.gl;
 
+import derelict.devil.il;
+
 enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
 
@@ -21,6 +23,7 @@ int main(string[] args) {
 	// Lets load all symbols
 	DerelictGL3.load();
 	DerelictGLFW3.load();
+	DerelictIL.load();
 	
 	write("Creating main window... ");
 	if(!glfwInit()) {
@@ -55,10 +58,11 @@ int main(string[] args) {
 
 	// Our triangle
 	float vertices[] = [
-		-0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
-		0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
-		0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
-		-0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
+		//  Position   Color             Texcoords
+		-0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // Top-left
+		 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // Top-right
+		 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, // Bottom-right
+		-0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f  // Bottom-left
 	];
 
 	GLuint elements[] = [
@@ -66,26 +70,32 @@ int main(string[] args) {
 	];
 
 	const char* vertexSource = 
-		`	#version 150
+		`	#version 130
 
 			in vec2 position;
 			in vec3 col;
+			in vec2 tex;
 			out vec3 color;
+			out vec2 texcoord;
 
 			void main()	{
 				color = col;	// Just passing by
+				texcoord = tex;	// Just passing by
 				gl_Position = vec4(position, 0.0, 1.0); //Put vertices in right position
 			}
 		`;
 	
 	const char* fragmentSource = 
-		`	#version 150
+		`	#version 130
 
 			in vec3 color;
+			in vec2 texcoord;
 			out vec4 outColor;
 
+			uniform sampler2D tex;
+
 			void main() {
-				outColor = vec4(color, 1.0); // Color per vertex = rainbow triangle
+				outColor = texture(tex, texcoord) * vec4(color, 1.0); // Color per vertex = rainbow triangle
 			}
 		`;
 
@@ -101,12 +111,12 @@ int main(string[] args) {
 	scope(exit) glDeleteBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	// Upload the vertices
-	glBufferData(GL_ARRAY_BUFFER, float.sizeof*vertices.length, vertices.ptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, float.sizeof * vertices.length, vertices.ptr, GL_STATIC_DRAW);
 
 	GLuint ebo;
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLuint.sizeof*elements.length, elements.ptr, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, GLuint.sizeof * elements.length, elements.ptr, GL_STATIC_DRAW);
 
 	writeln("Compiling shaders...");
 
@@ -148,17 +158,51 @@ int main(string[] args) {
 	// Tell our vertex shader how to use the vertices from our VBO
 	GLuint posAttrib = glGetAttribLocation(shaderProgram, "position");
 	glEnableVertexAttribArray(posAttrib);
-	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5 * float.sizeof, null);
+	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, null);
 
 	// ...and how to color them
 	GLuint colAttrib = glGetAttribLocation(shaderProgram, "col");
 	glEnableVertexAttribArray(colAttrib);
-	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 5 * float.sizeof, cast(void*) (2 * float.sizeof));
+	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (2 * float.sizeof));
+
+	GLuint texAttrib = glGetAttribLocation(shaderProgram, "tex");
+	glEnableVertexAttribArray(texAttrib);
+	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (5 * float.sizeof));
+
+	// Prepare to load images
+	write("Loading images... ");
+	ilInit();
+	ILuint img;
+	ilGenImages(1, &img);
+	scope(exit) ilDeleteImages(1, &img);
+	ilBindImage(img);
+	if(ilLoadImage("image-cat.png") == IL_FALSE) {
+		writeln("FAILED");
+		throw new Exception("<");
+	} else
+		writeln("DONE");
+	
+	int imgWidth = ilGetInteger(IL_IMAGE_WIDTH);
+	int imgHeight = ilGetInteger(IL_IMAGE_HEIGHT); 
+	ILubyte *imgData = ilGetData();
+
+	writeln("Converting to textures... ");
+	GLuint tex;
+	glGenTextures(1, &tex);
+	scope(exit) glDeleteTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgWidth, imgHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	//##################################
 	//##################################
-	uint frames, frames_old;
-	string frames_p = "~+-";
+	uint[2] frames;
+	enum frames_p = "~+-";
 	ulong ticks_ms = Clock.currAppTick.seconds;
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
@@ -177,14 +221,14 @@ int main(string[] args) {
 		glfwPollEvents();
 
 		if(Clock.currAppTick.seconds != ticks_ms) {
-			byte f = frames == frames_old ? 0 : frames > frames_old ? 1 : 2;
-			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames, '\0').ptr);
+			byte f = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
+			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames[0], '\0').ptr);
 			ticks_ms = Clock.currAppTick.seconds;
-			frames_old = frames;
-			frames = 0;
+			frames[1] = frames[0];
+			frames[0] = 0;
 		}
 
-		frames++;
+		frames[0]++;
 	}
 
 	writeln("Exiting...");

@@ -9,6 +9,7 @@
 	},
 	"importPaths": ["import"],
 	"libs-posix": ["dl"],
+	"copyFiles-all": ["res/image-cat.png"],
 
 	"targetType": "executable",
 	"targetPath": "bin"
