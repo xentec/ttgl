@@ -5,8 +5,9 @@ import std.conv : text;
 import std.math;
 import std.datetime;
 
-import derelict.glfw3.glfw3;
 import derelict.opengl3.gl;
+import derelict.glfw3.glfw3;
+import derelict.devil.il;
 
 import derelict.devil.il;
 
@@ -15,6 +16,21 @@ enum int[string] VERSION = [ "major":1, "minor":0 ];
 
 int main(string[] args) {
 	writeln(APPNAME, " ", VERSION["major"], ".",VERSION["minor"]);
+	debug {
+		writeln("==============================");
+		writeln("Arguements: ");
+		foreach(i, arg; args)
+			writeln("\t", i,"\t", arg);
+		writeln("==============================");
+		writeln("Environment: ");
+		foreach(k, env; std.process.environment.toAA())
+			writeln("\t", k,":\t", env);
+		writeln("==============================");
+		import std.file : dirEntries, SpanMode;
+		foreach (string name; dirEntries(".", SpanMode.breadth))
+			writeln(name);
+		writeln("==============================");
+	}
 
 	// Don't forget to say good bye (scopes are executed in reverse order)
 	scope(success) writeln("Have a nice day!");
