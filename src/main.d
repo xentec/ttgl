@@ -5,7 +5,7 @@ import std.conv : text;
 import std.math;
 import std.datetime;
 
-import derelict.opengl3.gl;
+import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
 import derelict.devil.il;
 
@@ -27,8 +27,8 @@ int main(string[] args) {
 			writeln("\t", k,":\t", env);
 		writeln("==============================");
 		import std.file : dirEntries, SpanMode;
-		foreach (string name; dirEntries(".", SpanMode.breadth))
-			writeln(name);
+		foreach (name; dirEntries(".", SpanMode.shallow))
+			writeln("\t", name);
 		writeln("==============================");
 	}
 
