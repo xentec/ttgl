@@ -217,6 +217,20 @@ int main(string[] args) {
 
 	//##################################
 	//##################################
+	// Input handler
+	extern (C) void input_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) // Make it close itself on ESC
+			glfwSetWindowShouldClose(window, GL_TRUE);
+	}
+	glfwSetKeyCallback(window, &input_cb); //  Since glfw is a C library, we can't use inline function syntax
+
+	// Resize handler
+	extern (C) void resize_cb(GLFWwindow* window, int width, int height) {
+		glViewport(0, 0, width, height);
+	}
+	glfwSetFramebufferSizeCallback(window, &resize_cb);
+
+	// Initialising frame counter
 	uint[2] frames;
 	enum frames_p = "~+-";
 	ulong ticks_ms = Clock.currAppTick.seconds;
