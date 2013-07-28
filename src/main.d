@@ -10,8 +10,6 @@ import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
 import derelict.devil.il;
 
-import derelict.devil.il;
-
 enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
 
@@ -27,7 +25,8 @@ int main(string[] args) {
 		foreach(k, env; std.process.environment.toAA())
 			writeln("\t", k,":\t", env);
 		writeln("==============================");
-		import std.file : dirEntries, SpanMode;
+		import std.file : getcwd, dirEntries, SpanMode;
+		writeln(getcwd());
 		foreach (name; dirEntries(".", SpanMode.shallow))
 			writeln("\t", name);
 		writeln("==============================");
@@ -40,12 +39,18 @@ int main(string[] args) {
 	// Lets load all symbols
 	DerelictGL3.load();
 	DerelictGLFW3.load();
-	DerelictIL.load();
-	
+
+	// GLFW error catcher
+	__gshared string glfwError;
+	GLFWerrorfun error_cb = (int code, const(char)* msg) {
+		glfwError = text(code, " => ", msg);
+	};
+	glfwSetErrorCallback(error_cb);
+
 	write("Creating main window... ");
 	if(!glfwInit()) {
 		writeln("FAILED"); // Something is seriously wrong
-		throw new Exception("<");
+		throw new Exception(glfwError);
 	}
 
 	// Better safe than sorry
@@ -55,7 +60,7 @@ int main(string[] args) {
 	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").toStringz, null, null);
 	if(!window) {
 		writeln("FAILED");		// Not as wrong as above, but wrong enough
-		throw new Exception("<");	//TODO: Build some kind of recovery
+		throw new Exception(glfwError);	//TODO: Build some kind of recovery
 	} else
 		writeln("DONE");
 	
@@ -144,8 +149,8 @@ int main(string[] args) {
 	
 	glCompileShader(vertexShader);
 	if(!isShaderCompiled(vertexShader)) {
-		writeln("E: " ~ getShaderCompileLog(vertexShader));
-		throw new Exception("<");
+		writeln("FAILED");
+		throw new Exception(getShaderCompileLog(vertexShader));
 	} else
 		writeln("DONE");
 
@@ -156,8 +161,8 @@ int main(string[] args) {
 	
 	glCompileShader(fragmentShader);
 	if(!isShaderCompiled(fragmentShader)) {
-		writeln("E: " ~ getShaderCompileLog(fragmentShader));
-		throw new Exception("<");
+		writeln("FAILED");
+		throw new Exception(getShaderCompileLog(fragmentShader));
 	} else
 		writeln("DONE");
 
@@ -188,14 +193,23 @@ int main(string[] args) {
 
 	// Prepare to load images
 	write("Loading images... ");
+	// Init
+	DerelictIL.load();
 	ilInit();
+	// Actually loading
 	ILuint img;
 	ilGenImages(1, &img);
 	scope(exit) ilDeleteImages(1, &img);
 	ilBindImage(img);
 	if(ilLoadImage("image-cat.png") == IL_FALSE) {
 		writeln("FAILED");
-		throw new Exception("<");
+
+		// load all symbols and make an init for a single function call to get an error message. meh.
+		import derelict.devil.ilu;
+		DerelictILU.load();
+		iluInit();
+		ILenum err = ilGetError();
+		throw new Exception(text(err, " => ", iluErrorString(err)));
 	} else
 		writeln("DONE");
 	
@@ -282,5 +296,5 @@ string getShaderCompileLog(in GLuint shader) {
 	buffer.length = length;
 	glGetShaderInfoLog(shader, length, null, buffer.ptr);
 
-	return std.string.chop(buffer).idup;
+	return chop(buffer).idup;
 }
