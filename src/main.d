@@ -1,9 +1,10 @@
 module ttgl.app;
 
-import std.stdio;
 import std.conv : text;
-import std.math;
 import std.datetime;
+import std.math;
+import std.stdio;
+import std.string;
 
 import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
@@ -51,7 +52,7 @@ int main(string[] args) {
 	scope(exit) glfwTerminate();
 	
 	// Just getting some living space here
-	GLFWwindow* window = glfwCreateWindow(800, 600, APPNAME ~ " - Oh my!", null, null);
+	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").toStringz, null, null);
 	if(!window) {
 		writeln("FAILED");		// Not as wrong as above, but wrong enough
 		throw new Exception("<");	//TODO: Build some kind of recovery
@@ -234,6 +235,7 @@ int main(string[] args) {
 	uint[2] frames;
 	enum frames_p = "~+-";
 	ulong ticks_ms = Clock.currAppTick.seconds;
+
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
 		//##############
@@ -252,7 +254,7 @@ int main(string[] args) {
 
 		if(Clock.currAppTick.seconds != ticks_ms) {
 			byte f = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
-			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames[0], '\0').ptr);
+			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames[0]).toStringz);
 			ticks_ms = Clock.currAppTick.seconds;
 			frames[1] = frames[0];
 			frames[0] = 0;
