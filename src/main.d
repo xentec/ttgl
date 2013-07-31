@@ -1,7 +1,9 @@
 module ttgl.app;
 
+import core.thread: Thread;
+
 import std.conv : text;
-import std.datetime : Clock;
+import std.datetime : Clock, Duration, dur;
 import std.math;
 import std.stdio;
 import std.string : chop, nt = toStringz;
@@ -279,8 +281,13 @@ int main(string[] args) {
 
 	// Initialising frame counter
 	uint[2] frames;
-	enum frames_p = "~+-";
-	ulong ticks_ms = Clock.currAppTick.seconds;
+	enum framesPrefix = "~+-";
+	ulong tickSeconds = Clock.currAppTick.seconds;
+
+	enum sleepMS = 1000f / 60f; // 60 frames in 1 second (1k ms)
+	Duration sleep = dur!"usecs"(cast(int)sleepMS*1000);
+
+	glfwSwapInterval(0); // Turn VSync off
 
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
@@ -298,15 +305,20 @@ int main(string[] args) {
 		// and wait for more to come
 		glfwPollEvents();
 
-		if(Clock.currAppTick.seconds != ticks_ms) {
+		frames[0]++; // +1 Frame
+
+		if(Clock.currAppTick.seconds != tickSeconds) {
+			float msPerFrame = 1000f/frames[0]; // ms per Frame
+			sleep = msPerFrame < sleepMS ? dur!"usecs"(cast(int)sleepMS*1000) : dur!"usecs"(0); // sleep only with good fps
+
 			byte f = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
-			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames[0]).nt);
-			ticks_ms = Clock.currAppTick.seconds;
+			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", framesPrefix[f], frames[0]," (", msPerFrame, "ms)").nt);
+
+			tickSeconds = Clock.currAppTick.seconds;
 			frames[1] = frames[0];
 			frames[0] = 0;
 		}
-
-		frames[0]++;
+		Thread.getThis.sleep(sleep); // Zzz..
 	}
 
 	writeln("Exiting...");
