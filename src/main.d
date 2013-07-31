@@ -114,10 +114,11 @@ int main(string[] args) {
 			in vec2 texcoord;
 			out vec4 outColor;
 
-			uniform sampler2D tex;
+			uniform sampler2D cat;
+			uniform sampler2D scenery;
 
-			void main() {
-				outColor = texture(tex, texcoord) * vec4(color, 1.0); // Color per vertex = rainbow triangle
+			void main() {	// texture mixer:  cat	+	scene		with ratio of
+				outColor = mix(texture(cat, texcoord), texture(scenery, texcoord), 0.5); // * vec4(color, 1.0); // Color per vertex = rainbow triangle
 			}
 		`;
 
@@ -196,39 +197,70 @@ int main(string[] args) {
 	// Init
 	DerelictIL.load();
 	ilInit();
-	// Actually loading
-	ILuint img;
-	ilGenImages(1, &img);
-	scope(exit) ilDeleteImages(1, &img);
-	ilBindImage(img);
-	if(ilLoadImage("image-cat.png") == IL_FALSE) {
-		writeln("FAILED");
 
-		// load all symbols and make an init for a single function call to get an error message. meh.
-		import derelict.devil.ilu;
-		DerelictILU.load();
-		iluInit();
-		ILenum err = ilGetError();
-		throw new Exception(text(err, " => ", iluErrorString(err)));
-	} else
+	// Texture files
+	string[string] imgFiles = [ "cat":"res/image-cat.png", "scenery":"res/image-scenery.jpg" ];
+
+	int imgFilesNum = cast(int) imgFiles.length; // because Gen*() hates getting sane uint for size
+	writeln(imgFilesNum);
+
+	//Generate 
+	ILuint[] img;
+	img.length = imgFiles.length;
+	ilGenImages(imgFilesNum, img.ptr);
+	scope(exit) ilDeleteImages(imgFilesNum, img.ptr);
+
+	GLuint[] tex;
+	tex.length  = imgFiles.length;
+	glGenTextures(imgFilesNum, tex.ptr);
+	scope(exit) glDeleteTextures(imgFilesNum, tex.ptr);
+
+	uint i = 0;
+	foreach(string name, string file; imgFiles) {
+		write("\t" ,i , ": ", file, "... ");
+
+		// Set correct context
+		ilBindImage(img[i]);
+		glActiveTexture(GL_TEXTURE0 + i);
+		glBindTexture(GL_TEXTURE_2D, tex[i]);
+
+		debug write("::IL:", img[i], "::TEX:", tex[i], " .. ");
+
+		// Actually loading
+		if(ilLoadImage(file.toStringz) == IL_FALSE) {
+			writeln("FAILED");
+
+			// load all symbols and make an init for a single function call to get an error message. meh.
+			import derelict.devil.ilu;
+			if(!DerelictILU.isLoaded) {
+				DerelictILU.load();
+				iluInit();
+			}
+			ILenum err = ilGetError();
+			throw new Exception(text(err, " => ", iluErrorString(err)));
+		}
+
+		write("sampling... ");
+
+		// Wrapper parameters
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		// Filters
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		// Upload!
+		glTexImage2D(GL_TEXTURE_2D, 0, ilGetInteger(IL_IMAGE_BPP), 
+									ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 
+					 				0, ilGetInteger(IL_IMAGE_FORMAT),
+					 				GL_UNSIGNED_BYTE, ilGetData());
+
+		// and link.
+		glUniform1i(glGetUniformLocation(shaderProgram, name.toStringz), i);
+
+		i++;
 		writeln("DONE");
-	
-	int imgWidth = ilGetInteger(IL_IMAGE_WIDTH);
-	int imgHeight = ilGetInteger(IL_IMAGE_HEIGHT); 
-	ILubyte *imgData = ilGetData();
-
-	writeln("Converting to textures... ");
-	GLuint tex;
-	glGenTextures(1, &tex);
-	scope(exit) glDeleteTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imgWidth, imgHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
 
 	//##################################
 	//##################################
