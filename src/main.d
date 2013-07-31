@@ -1,10 +1,10 @@
 module ttgl.app;
 
 import std.conv : text;
-import std.datetime;
+import std.datetime : Clock;
 import std.math;
 import std.stdio;
-import std.string;
+import std.string : chop, nt = toStringz;
 
 import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
@@ -57,7 +57,7 @@ int main(string[] args) {
 	scope(exit) glfwTerminate();
 	
 	// Just getting some living space here
-	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").toStringz, null, null);
+	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").nt, null, null);
 	if(!window) {
 		writeln("FAILED");		// Not as wrong as above, but wrong enough
 		throw new Exception(glfwError);	//TODO: Build some kind of recovery
@@ -227,7 +227,7 @@ int main(string[] args) {
 		debug write("::IL:", img[i], "::TEX:", tex[i], " .. ");
 
 		// Actually loading
-		if(ilLoadImage(file.toStringz) == IL_FALSE) {
+		if(ilLoadImage(file.nt) == IL_FALSE) {
 			writeln("FAILED");
 
 			// load all symbols and make an init for a single function call to get an error message. meh.
@@ -256,7 +256,7 @@ int main(string[] args) {
 					 				GL_UNSIGNED_BYTE, ilGetData());
 
 		// and link.
-		glUniform1i(glGetUniformLocation(shaderProgram, name.toStringz), i);
+		glUniform1i(glGetUniformLocation(shaderProgram, name.nt), i);
 
 		i++;
 		writeln("DONE");
@@ -300,7 +300,7 @@ int main(string[] args) {
 
 		if(Clock.currAppTick.seconds != ticks_ms) {
 			byte f = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
-			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames[0]).toStringz);
+			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", frames_p[f], frames[0]).nt);
 			ticks_ms = Clock.currAppTick.seconds;
 			frames[1] = frames[0];
 			frames[0] = 0;

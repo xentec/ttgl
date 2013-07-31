@@ -5,7 +5,9 @@
 	"license": "MIT",
 
 	"dependencies": {
-		"derelict": "~master"
+		"derelict:glfw3": "~master",
+		"derelict:opengl3": "~master",
+		"derelict:devil": "~master",
 	},
 	"importPaths": ["import"],
 	"libs-posix": ["dl"],
