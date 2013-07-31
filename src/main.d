@@ -12,6 +12,8 @@ import derelict.opengl3.gl3;
 import derelict.glfw3.glfw3;
 import derelict.devil.il;
 
+import gl3n.linalg;
+
 enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
 
@@ -102,10 +104,12 @@ int main(string[] args) {
 			out vec3 color;
 			out vec2 texcoord;
 
+			uniform mat4 trans;
+
 			void main()	{
 				color = col;	// Just passing by
 				texcoord = tex;	// Just passing by
-				gl_Position = vec4(position, 0.0, 1.0); //Put vertices in right position
+				gl_Position = trans * vec4(position, 0.0, 1.0); //Put vertices in right position
 			}
 		`;
 	
@@ -193,6 +197,17 @@ int main(string[] args) {
 	GLuint texAttrib = glGetAttribLocation(shaderProgram, "tex");
 	glEnableVertexAttribArray(texAttrib);
 	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (5 * float.sizeof));
+
+	enum real TAU = 2*PI; // Not following old insanity
+	real rad(in real degree) { return degree*TAU/360.0; }
+
+	// Enter the Matrix!
+	mat4 trans = mat4(1,0,0,0,
+					  0,1,0,0, // setting up our translation matrix
+					  0,0,1,0,
+					  0,0,0,1);
+
+	GLuint uniTrans = glGetUniformLocation(shaderProgram, "trans");
 
 	// Prepare to load images
 	write("Loading images... ");
@@ -295,6 +310,9 @@ int main(string[] args) {
 
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+
+		mat4 transRotation = trans.rotation(rad(glfwGetTime()*180f), vec3(0.0, 0.0, 1.0));
+		glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transRotation.value_ptr);
 
 		// Draw it!
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
