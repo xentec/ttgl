@@ -1,4 +1,6 @@
-module ttgl.app;
+
+
+import ttgl.math;
 
 import core.thread: Thread;
 
@@ -96,7 +98,7 @@ int main(string[] args) {
 	];
 
 	const char* vertexSource = 
-		`	#version 130
+		`	#version 430 core
 
 			in vec2 position;
 			in vec3 col;
@@ -114,7 +116,7 @@ int main(string[] args) {
 		`;
 	
 	const char* fragmentSource = 
-		`	#version 130
+		`	#version 430 core
 
 			in vec3 color;
 			in vec2 texcoord;
@@ -327,7 +329,7 @@ int main(string[] args) {
 
 		if(Clock.currAppTick.seconds != tickSeconds) {
 			float msPerFrame = 1000f/frames[0]; // ms per Frame
-			sleep = msPerFrame < sleepMS ? dur!"usecs"(cast(int)sleepMS*1000) : dur!"usecs"(0); // sleep only with good fps
+			sleep = dur!"usecs"(msPerFrame < sleepMS+sleepMS/10 ? cast(int)sleepMS * 1000 : 0); // sleep only with good fps
 
 			byte f = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
 			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", framesPrefix[f], frames[0]," (", msPerFrame, "ms)").nt);
