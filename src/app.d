@@ -48,10 +48,10 @@ int main(string[] args) {
 
 	// GLFW error catcher
 	__gshared string glfwError;
-	GLFWerrorfun error_cb = (int code, const(char)* msg) {
+	GLFWerrorfun glfwError_cb = (int code, const(char)* msg) {
 		glfwError = text(code, " => ", msg);
 	};
-	glfwSetErrorCallback(error_cb);
+	glfwSetErrorCallback(glfwError_cb);
 
 	write("Creating main window... ");
 	if(!glfwInit()) {
@@ -81,6 +81,17 @@ int main(string[] args) {
 
 	// Sometimes loading everything is just not enough
 	DerelictGL3.reload();
+	
+	GLDEBUGPROC glError_cb = (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
+		try {
+			stderr.writeln("[",glfwGetTime(),"] ","glError: \tSource: ", source, "; Type: ", type, "; ID: ", id, "; Severity: ", severity, "; Length: ", length, "\n"
+					"\t\t", text(message), "\n",
+					"\t\t", userParam);
+			stderr.flush();
+		} catch (Throwable e) {	}
+	};
+	glDebugMessageCallback(glError_cb, null);
+	debug glEnable(GL_DEBUG_OUTPUT);
 	//##################################
 	//##################################
 
@@ -103,15 +114,18 @@ int main(string[] args) {
 			in vec2 position;
 			in vec3 col;
 			in vec2 tex;
+
 			out vec3 color;
 			out vec2 texcoord;
 
-			uniform mat4 trans;
+			uniform mat4 model;
+			uniform mat4 view;
+			uniform mat4 proj;
 
 			void main()	{
 				color = col;	// Just passing by
 				texcoord = tex;	// Just passing by
-				gl_Position = trans * vec4(position, 0.0, 1.0); //Put vertices in right position
+				gl_Position = proj * view * model * vec4(position, 0.0, 1.0); //Put vertices in right position
 			}
 		`;
 	
@@ -178,6 +192,7 @@ int main(string[] args) {
 	writeln("Starting the shader program...");
 	GLuint shaderProgram = glCreateProgram();
 	scope(exit) glDeleteProgram(shaderProgram);
+
 	glAttachShader(shaderProgram, vertexShader);
 	glAttachShader(shaderProgram, fragmentShader);
 
@@ -186,31 +201,42 @@ int main(string[] args) {
 	glLinkProgram(shaderProgram);
 	glUseProgram(shaderProgram);
 
+	// Vertices
+	//##########################
+	writeln("Loading vertices...");
+
 	// Tell our vertex shader how to use the vertices from our VBO
 	GLuint posAttrib = glGetAttribLocation(shaderProgram, "position");
-	glEnableVertexAttribArray(posAttrib);
 	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, null);
+	glEnableVertexAttribArray(posAttrib);
 
 	// ...and how to color them
 	GLuint colAttrib = glGetAttribLocation(shaderProgram, "col");
-	glEnableVertexAttribArray(colAttrib);
 	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (2 * float.sizeof));
+	glEnableVertexAttribArray(colAttrib);
 
 	GLuint texAttrib = glGetAttribLocation(shaderProgram, "tex");
-	glEnableVertexAttribArray(texAttrib);
 	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (5 * float.sizeof));
+	glEnableVertexAttribArray(texAttrib);
 
-	enum real TAU = 2*PI; // Not following old insanity
-	real rad(in real degree) { return degree*TAU/360.0; }
-
+	// Transformations
+	//##########################
+	debug writeln("Calculating Matrices...");
 	// Enter the Matrix!
-	mat4 trans = mat4(1,0,0,0,
-					  0,1,0,0, // setting up our translation matrix
-					  0,0,1,0,
-					  0,0,0,1);
+	mat4 model = mat4.identity;
+	GLuint uniModel = glGetUniformLocation(shaderProgram, "model");
 
-	GLuint uniTrans = glGetUniformLocation(shaderProgram, "trans");
+	mat4 view = mat4.look_at(vec3(1.2f, 1.2f, 1.2f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
 
+	GLuint uniView = glGetUniformLocation(shaderProgram, "view");
+	glUniformMatrix4fv(uniView, 1, GL_TRUE, view.value_ptr);
+
+	mat4 proj = mat4.perspective(800f, 600f, 45.0f, 1.0f, 10.0f);
+	GLuint uniProj = glGetUniformLocation(shaderProgram, "proj");
+	glUniformMatrix4fv(uniProj, 1, GL_TRUE, proj.value_ptr);
+
+	// Textures
+	//##########################
 	// Prepare to load images
 	write("Loading images... ");
 	// Init
@@ -258,7 +284,6 @@ int main(string[] args) {
 			ILenum err = ilGetError();
 			throw new Exception(text(err, " => ", iluErrorString(err)));
 		}
-
 		write("sampling... ");
 
 		// Wrapper parameters
@@ -313,8 +338,8 @@ int main(string[] args) {
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		mat4 transRotation = trans.rotation(rad(glfwGetTime()*180f), vec3(0.0, 0.0, 1.0));
-		glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transRotation.value_ptr);
+		mat4 transRotation = model.rotation(rad(glfwGetTime()*180f), vec3(0.0f, 0.0f, 1.0f));
+		glUniformMatrix4fv(uniModel, 1, GL_TRUE, transRotation.value_ptr);
 
 		// Draw it!
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, null);
