@@ -61,6 +61,15 @@ int main(string[] args) {
 
 	// Better safe than sorry
 	scope(exit) glfwTerminate();
+
+	// Setting the settings
+	/*
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+	//*/
 	
 	// Just getting some living space here
 	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").nt, null, null);
@@ -140,7 +149,7 @@ int main(string[] args) {
 			uniform sampler2D scenery;
 
 			void main() {	// texture mixer:  cat	+	scene		with ratio of
-				outColor = mix(texture(cat, texcoord), texture(scenery, texcoord), 0.5); // * vec4(color, 1.0); // Color per vertex = rainbow triangle
+				outColor = mix(texture(cat, texcoord), texture(scenery, texcoord), 0.5) * vec4(color, 1.0); // Color per vertex = rainbow triangle
 			}
 		`;
 
@@ -206,16 +215,16 @@ int main(string[] args) {
 	writeln("Loading vertices...");
 
 	// Tell our vertex shader how to use the vertices from our VBO
-	GLuint posAttrib = glGetAttribLocation(shaderProgram, "position");
+	GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
 	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, null);
 	glEnableVertexAttribArray(posAttrib);
 
 	// ...and how to color them
-	GLuint colAttrib = glGetAttribLocation(shaderProgram, "col");
+	GLint colAttrib = glGetAttribLocation(shaderProgram, "col");
 	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (2 * float.sizeof));
 	glEnableVertexAttribArray(colAttrib);
 
-	GLuint texAttrib = glGetAttribLocation(shaderProgram, "tex");
+	GLint texAttrib = glGetAttribLocation(shaderProgram, "tex");
 	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 7 * float.sizeof, cast(void*) (5 * float.sizeof));
 	glEnableVertexAttribArray(texAttrib);
 
