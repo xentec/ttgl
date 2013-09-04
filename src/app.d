@@ -10,9 +10,10 @@ import std.math;
 import std.stdio;
 import std.string : chop, nt = toStringz;
 
+import glfw.glfw3;
+import il.il;
+
 import derelict.opengl3.gl3;
-import derelict.glfw3.glfw3;
-import derelict.devil.il;
 
 import gl3n.linalg;
 
@@ -44,7 +45,7 @@ int main(string[] args) {
 	
 	// Lets load all symbols
 	DerelictGL3.load();
-	DerelictGLFW3.load();
+//	DerelictGLFW3.load();
 
 	// GLFW error catcher
 	__gshared string glfwError;
@@ -58,17 +59,18 @@ int main(string[] args) {
 		writeln("FAILED"); // Something is seriously wrong
 		throw new Exception(glfwError);
 	}
-
+	
 	// Better safe than sorry
 	scope(exit) glfwTerminate();
 
+	
 	// Setting the settings
-	/*
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	//*
+	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	//glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 	//*/
 	
 	// Just getting some living space here
@@ -90,17 +92,20 @@ int main(string[] args) {
 
 	// Sometimes loading everything is just not enough
 	DerelictGL3.reload();
-	
-	GLDEBUGPROC glError_cb = (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
-		try {
-			stderr.writeln("[",glfwGetTime(),"] ","glError: \tSource: ", source, "; Type: ", type, "; ID: ", id, "; Severity: ", severity, "; Length: ", length, "\n"
-					"\t\t", text(message), "\n",
-					"\t\t", userParam);
-			stderr.flush();
-		} catch (Throwable e) {	}
-	};
-	glDebugMessageCallback(glError_cb, null);
-	debug glEnable(GL_DEBUG_OUTPUT);
+
+	debug {
+		// In case shit hits the fan
+		GLDEBUGPROC glError_cb = (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
+			try {
+				stderr.writeln("[",glfwGetTime(),"] ","glError: \tSource: ", source, "; Type: ", type, "; ID: ", id, "; Severity: ", severity, "; Length: ", length, "\n"
+						"\t\t", text(message), "\n",
+						"\t\t", userParam);
+				stderr.flush();
+			} catch (Throwable e) {	}
+		};
+		glDebugMessageCallback(glError_cb, null);
+		glEnable(GL_DEBUG_OUTPUT);
+	}
 	//##################################
 	//##################################
 
@@ -249,7 +254,7 @@ int main(string[] args) {
 	// Prepare to load images
 	write("Loading images... ");
 	// Init
-	DerelictIL.load();
+//	DerelictIL.load();
 	ilInit();
 
 	// Texture files
@@ -285,11 +290,8 @@ int main(string[] args) {
 			writeln("FAILED");
 
 			// load all symbols and make an init for a single function call to get an error message. meh.
-			import derelict.devil.ilu;
-			if(!DerelictILU.isLoaded) {
-				DerelictILU.load();
-				iluInit();
-			}
+			import il.ilu;
+			iluInit();
 			ILenum err = ilGetError();
 			throw new Exception(text(err, " => ", iluErrorString(err)));
 		}
@@ -378,6 +380,16 @@ int main(string[] args) {
 	writeln("Exiting...");
 	// Don't forget the scopes! ^
 	return 0;
+}
+
+void getGLVersion(out int major, out int minor, out int rev) {
+	glfwInit();
+
+	GLFWwindow* window = glfwCreateWindow(0, 0, (APPNAME ~ " - Oh my!").nt, null, null);
+	major = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MAJOR);
+	minor = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MINOR);
+	rev = glfwGetWindowAttrib(window, GLFW_CONTEXT_REVISION);
+	glfwDestroyWindow(window);
 }
 
 bool isShaderCompiled(in GLuint shader) {

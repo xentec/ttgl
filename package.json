@@ -5,13 +5,11 @@
 	"license": "MIT",
 
 	"dependencies": {
-		"derelict:glfw3": "~master",
-		"derelict:opengl3": "~master",
-		"derelict:devil": "~master",
+		"derelict-gl3": "~master",
 		"gl3n":	"~master"
 	},
 	"importPaths": ["import"],
-	"libs-posix": ["dl"],
+	"libs-posix": ["dl", "glfw", "ILU", "IL"],
 	"copyFiles-all": ["res"],
 
 	"targetType": "executable",
