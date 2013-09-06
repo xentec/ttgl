@@ -283,7 +283,7 @@ int main(string[] args) {
 		glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, tex[i]);
 
-		debug write("::IL:", img[i], "::TEX:", tex[i], " .. ");
+		debug write("::IL:", img[i], "::TEX:", tex[i], "... ");
 
 		// Actually loading
 		if(ilLoadImage(file.nt) == IL_FALSE) {
@@ -304,10 +304,17 @@ int main(string[] args) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+		ILint	bpp = ilGetInteger(IL_IMAGE_BPP),
+				width =	ilGetInteger(IL_IMAGE_WIDTH),
+				height = ilGetInteger(IL_IMAGE_HEIGHT), 
+				format = ilGetInteger(IL_IMAGE_FORMAT);
+
+		debug write("::",width,"x",height,"x",bpp,"::",std.string.format("0x%X",format),"... ");
+
 		// Upload!
-		glTexImage2D(GL_TEXTURE_2D, 0, ilGetInteger(IL_IMAGE_BPP), 
-									ilGetInteger(IL_IMAGE_WIDTH), ilGetInteger(IL_IMAGE_HEIGHT), 
-					 				0, ilGetInteger(IL_IMAGE_FORMAT),
+		glTexImage2D(GL_TEXTURE_2D, 0, bpp, 
+									width, height, 
+					 				0, format,
 					 				GL_UNSIGNED_BYTE, ilGetData());
 
 		// and link.
