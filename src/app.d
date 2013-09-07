@@ -65,13 +65,11 @@ int main(string[] args) {
 
 	
 	// Setting the settings
-	//*
-	//glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	//glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-	//*/
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	debug glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 	
 	// Just getting some living space here
 	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").nt, null, null);
@@ -253,9 +251,12 @@ int main(string[] args) {
 	//##########################
 	// Prepare to load images
 	write("Loading images... ");
-	// Init
-//	DerelictIL.load();
+	// Init devIL
 	ilInit();
+
+	// Compatibility for <3.3 OpenGL versions
+	ILenum IL_IMAGE_INTERNAL_FORMAT = glfwGetWindowAttrib(window, GLFW_OPENGL_PROFILE) == GLFW_OPENGL_CORE_PROFILE
+										? IL_IMAGE_FORMAT : IL_IMAGE_BPP;
 
 	// Texture files
 	string[string] imgFiles = [ "cat":"res/image-cat.png", "scenery":"res/image-scenery.jpg" ];
@@ -304,15 +305,15 @@ int main(string[] args) {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		ILint	bpp = ilGetInteger(IL_IMAGE_BPP),
-				width =	ilGetInteger(IL_IMAGE_WIDTH),
-				height = ilGetInteger(IL_IMAGE_HEIGHT), 
-				format = ilGetInteger(IL_IMAGE_FORMAT);
+		ILint internalFormat = ilGetInteger(IL_IMAGE_INTERNAL_FORMAT),
+			width =	ilGetInteger(IL_IMAGE_WIDTH),
+			height = ilGetInteger(IL_IMAGE_HEIGHT), 
+			format = ilGetInteger(IL_IMAGE_FORMAT);
 
-		debug write("::",width,"x",height,"x",bpp,"::",std.string.format("0x%X",format),"... ");
+		debug write("::",width,"x",height,"x",std.string.format("0x%X",internalFormat),"::",std.string.format("0x%X",format),"... ");
 
 		// Upload!
-		glTexImage2D(GL_TEXTURE_2D, 0, bpp, 
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 
 									width, height, 
 					 				0, format,
 					 				GL_UNSIGNED_BYTE, ilGetData());
