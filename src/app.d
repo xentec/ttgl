@@ -110,7 +110,6 @@ int main(string[] args) {
 	}
 	//##################################
 	//##################################
-	glEnable(GL_DEPTH_TEST);
 
 	// Our triangle
 	float vertices[] = [
@@ -155,7 +154,15 @@ int main(string[] args) {
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f
+		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+
+
+		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		 1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		-1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 	];
 
 	const char* vertexSource = 
@@ -267,10 +274,10 @@ int main(string[] args) {
 	//##########################
 	debug writeln("Calculating Matrices...");
 	// Enter the Matrix!
-	mat4 model = mat4.identity;
+	mat4 model;
 	GLuint uniModel = glGetUniformLocation(shaderProgram, "model");
 
-	mat4 view = mat4.look_at(vec3(1.2f, 1.2f, 1.2f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
+	mat4 view = mat4.look_at(vec3(2.5f, 2.5f, 2.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
 
 	GLuint uniView = glGetUniformLocation(shaderProgram, "view");
 	glUniformMatrix4fv(uniView, 1, GL_TRUE, view.value_ptr);
@@ -321,11 +328,11 @@ int main(string[] args) {
 		// Actually loading
 		if(ilLoadImage(file.nt) == IL_FALSE) {
 			writeln("FAILED");
+			ILenum err = ilGetError();
 
 			// load all symbols and make an init for a single function call to get an error message. meh.
 			import il.ilu;
 			iluInit();
-			ILenum err = ilGetError();
 			throw new Exception(text(err, " => ", iluErrorString(err)));
 		}
 		write("sampling... ");
@@ -357,6 +364,11 @@ int main(string[] args) {
 		writeln("DONE");
 	}
 
+	// Advanced Buffers
+	//##########################
+	// Depth
+	glEnable(GL_DEPTH_TEST);
+
 	//##################################
 	//##################################
 	// Input handler
@@ -386,13 +398,26 @@ int main(string[] args) {
 	while(!glfwWindowShouldClose(window)) {
 		//##############
 
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		// white background
+		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		mat4 transRotation = model.rotation(rad(glfwGetTime()*180f), vec3(0.0f, 0.0f, 1.0f));
-		glUniformMatrix4fv(uniModel, 1, GL_TRUE, transRotation.value_ptr);
+		// Rotate it
+		model = mat4.identity;
+		model.rotate(rad(glfwGetTime()*180f), vec3(0.0f, 0.0f, 1.0f));
+		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
 
-		// Draw it!
+		// Draw the 'real' cube
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		// Draw the plane
+		glDrawArrays(GL_TRIANGLES, 36, 6);
+
+		// Mirror the cube
+		model.translate(0, 0, -1).scale(1, 1, -1);
+		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
+
+		// Draw again...
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		//##############
