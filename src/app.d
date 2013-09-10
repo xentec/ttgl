@@ -178,10 +178,11 @@ int main(string[] args) {
 			uniform mat4 model;
 			uniform mat4 view;
 			uniform mat4 proj;
+			uniform vec3 overrideColor;
 
 			void main()	{
-				color = col;	// Just passing by
 				texcoord = tex;	// Just passing by
+				color = col * overrideColor;	// Mixing!
 				gl_Position = proj * view * model * vec4(position, 1.0); //Put vertices in right position
 			}
 		`;
@@ -369,6 +370,9 @@ int main(string[] args) {
 	// Depth
 	glEnable(GL_DEPTH_TEST);
 
+	// Misc
+	GLint uniColor = glGetUniformLocation(shaderProgram, "overrideColor");
+
 	//##################################
 	//##################################
 	// Input handler
@@ -410,15 +414,37 @@ int main(string[] args) {
 		// Draw the 'real' cube
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
-		// Draw the plane
-		glDrawArrays(GL_TRIANGLES, 36, 6);
+		// Now time for advanced procedures
+		{
+			glEnable(GL_STENCIL_TEST);
+			scope(exit) glDisable(GL_STENCIL_TEST); // Just in case this scope goes fubar at runtime
 
-		// Mirror the cube
-		model.translate(0, 0, -1).scale(1, 1, -1);
-		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
+			// Setup stencil test for plane
+			glStencilFunc(GL_ALWAYS, 1, 0xFF);
+			glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+			glStencilMask(0xFF); // Set stencil buffer
+			// Ignore depth test for this
+			glDepthMask(GL_FALSE);
+			// Clear buffer for fresh draw
+			glClear(GL_STENCIL_BUFFER_BIT);
 
-		// Draw again...
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+			// Draw the plane
+			glDrawArrays(GL_TRIANGLES, 36, 6);
+
+			// Reset everything
+			glDepthMask(GL_TRUE);
+			glStencilFunc(GL_EQUAL, 1, 0xFF);
+			glStencilMask(0x00); // Ignore stencil test
+
+			// Mirror the cube
+			model.translate(0, 0, -1).scale(1, 1, -1);
+			glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
+
+			// Draw again...
+			glUniform3f(uniColor, 0.3f, 0.3f, 0.3f);
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+			glUniform3f(uniColor, 1.0f, 1.0f, 1.0f);
+		}
 
 		//##############
 		// Spit it out
