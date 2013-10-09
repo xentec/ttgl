@@ -4,6 +4,7 @@ import ttgl.math;
 
 import core.thread: Thread;
 
+import std.array : split;
 import std.conv : text;
 import std.datetime : Clock, Duration, dur;
 import std.math;
@@ -29,8 +30,16 @@ int main(string[] args) {
 			writeln("\t", i,"\t", arg);
 		writeln("==============================");
 		writeln("Environment: ");
-		foreach(k, env; std.process.environment.toAA())
-			writeln("\t", k,":\t", env);
+		foreach(k, env; std.process.environment.toAA()) {
+			write("\t", k, ": ");
+			if(k == "PATH") {
+				writeln("\\");
+				foreach(ref path; env.split(":"))
+					writeln("\t\t", path);
+			}
+			else
+				writeln(env);
+		}
 		writeln("==============================");
 		import std.file : getcwd, dirEntries, SpanMode;
 		writeln(getcwd());
@@ -42,7 +51,7 @@ int main(string[] args) {
 	// Don't forget to say good bye (scopes are executed in reverse order)
 	scope(success) writeln("Have a nice day!");
 	scope(failure) writeln("._.");
-	
+
 	// Lets load all symbols
 	DerelictGL3.load();
 //	DerelictGLFW3.load();
@@ -59,7 +68,7 @@ int main(string[] args) {
 		writeln("FAILED"); // Something is seriously wrong
 		throw new Exception(glfwError);
 	}
-	
+
 	// Better safe than sorry
 	scope(exit) glfwTerminate();
 
@@ -74,8 +83,8 @@ int main(string[] args) {
 
 	// Setting the accuracy of the buffers
 	glfwWindowHint(GLFW_DEPTH_BITS, 24);
-	glfwWindowHint(GLFW_STENCIL_BITS, 8);
-	
+	glfwWindowHint(GLFW_STENCIL_BITS, 2);
+
 
 	// Just getting some living space here
 	GLFWwindow* window = glfwCreateWindow(800, 600, (APPNAME ~ " - Oh my!").nt, null, null);
@@ -84,13 +93,13 @@ int main(string[] args) {
 		throw new Exception(glfwError);	//TODO: Build some kind of recovery
 	} else
 		writeln("DONE");
-	
+
 	// Remember to burn everything after mission
 	scope(exit) {
 		writeln("Destroying main window...");
 		glfwDestroyWindow(window);
 	}
-	
+
 	// OpenGL = on
 	glfwMakeContextCurrent(window);
 
@@ -167,7 +176,7 @@ int main(string[] args) {
 		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 	];
 
-	const char* vertexSource = 
+	const char* vertexSource =
 		`	#version 430 core
 
 			in vec3 position;
@@ -188,8 +197,8 @@ int main(string[] args) {
 				gl_Position = proj * view * model * vec4(position, 1.0); //Put vertices in right position
 			}
 		`;
-	
-	const char* fragmentSource = 
+
+	const char* fragmentSource =
 		`	#version 430 core
 
 			in vec3 color;
@@ -223,7 +232,7 @@ int main(string[] args) {
 	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	scope(exit) glDeleteShader(vertexShader);
 	glShaderSource(vertexShader, 1, &vertexSource, null);
-	
+
 	glCompileShader(vertexShader);
 	if(!isShaderCompiled(vertexShader)) {
 		writeln("FAILED");
@@ -235,7 +244,7 @@ int main(string[] args) {
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	scope(exit) glDeleteShader(fragmentShader);
 	glShaderSource(fragmentShader, 1, &fragmentSource, null);
-	
+
 	glCompileShader(fragmentShader);
 	if(!isShaderCompiled(fragmentShader)) {
 		writeln("FAILED");
@@ -296,7 +305,7 @@ int main(string[] args) {
 	// Init devIL
 	ilInit();
 
-	// Compatibility for <3.3 OpenGL versions
+	// Compatibility for < 3.3 OpenGL versions
 	ILenum IL_IMAGE_INTERNAL_FORMAT = glfwGetWindowAttrib(window, GLFW_OPENGL_PROFILE) == GLFW_OPENGL_CORE_PROFILE
 										? IL_IMAGE_FORMAT : IL_IMAGE_BPP;
 
@@ -306,7 +315,7 @@ int main(string[] args) {
 	int imgFilesNum = cast(int) imgFiles.length; // because Gen*() hates getting sane uint for size
 	writeln(imgFilesNum);
 
-	//Generate 
+	// Generate
 	ILuint[] img;
 	img.length = imgFiles.length;
 	ilGenImages(imgFilesNum, img.ptr);
@@ -349,14 +358,14 @@ int main(string[] args) {
 
 		ILint internalFormat = ilGetInteger(IL_IMAGE_INTERNAL_FORMAT),
 			width =	ilGetInteger(IL_IMAGE_WIDTH),
-			height = ilGetInteger(IL_IMAGE_HEIGHT), 
+			height = ilGetInteger(IL_IMAGE_HEIGHT),
 			format = ilGetInteger(IL_IMAGE_FORMAT);
 
 		debug write("::",width,"x",height,"x",std.string.format("0x%X",internalFormat),"::",std.string.format("0x%X",format),"... ");
 
 		// Upload!
-		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 
-									width, height, 
+		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat,
+									width, height,
 					 				0, format,
 					 				GL_UNSIGNED_BYTE, ilGetData());
 
@@ -402,6 +411,7 @@ int main(string[] args) {
 
 	writeln("Entering main loop...");
 	while(!glfwWindowShouldClose(window)) {
+		float time = glfwGetTime();
 		//##############
 
 		// white background
@@ -410,7 +420,7 @@ int main(string[] args) {
 
 		// Rotate it
 		model = mat4.identity;
-		model.rotate(rad(glfwGetTime()*180f), vec3(0.0f, 0.0f, 1.0f));
+		model.rotate(rad(time*180f), vec3(0.0f, 0.0f, 1.0f));
 		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
 
 		// Draw the 'real' cube
@@ -473,16 +483,6 @@ int main(string[] args) {
 	writeln("Exiting...");
 	// Don't forget the scopes! ^
 	return 0;
-}
-
-void getGLVersion(out int major, out int minor, out int rev) {
-	glfwInit();
-
-	GLFWwindow* window = glfwCreateWindow(0, 0, (APPNAME ~ " - Oh my!").nt, null, null);
-	major = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MAJOR);
-	minor = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MINOR);
-	rev = glfwGetWindowAttrib(window, GLFW_CONTEXT_REVISION);
-	glfwDestroyWindow(window);
 }
 
 bool isShaderCompiled(in GLuint shader) {
