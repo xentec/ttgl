@@ -9,7 +9,7 @@ import std.conv : text;
 import std.datetime : Clock, Duration, dur;
 import std.math;
 import std.stdio;
-import std.string : chop, nt = toStringz;
+import std.string : chop, nt = toStringz, format;
 
 import glfw.glfw3;
 import il.il;
@@ -124,53 +124,66 @@ int main(string[] args) {
 
 	// Our triangle
 	float vertices[] = [
-		//  Position		Color             Texcoords
+		//  Position		 Color             Texcoords
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+		// Bottom
 		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 
+
 		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+		// Top
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 
+
 		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 
+
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+
 		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 
+
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+
 		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 
+
 		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+
 		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
 		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 
 
+
 		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 		 1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
 		 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+
 		 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
 		-1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
 		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
@@ -404,8 +417,7 @@ int main(string[] args) {
 	enum framesPrefix = "~+-";
 	ulong tickSeconds = Clock.currAppTick.seconds;
 
-	enum sleepMS = 1000f / 60f; // 60 frames in 1 second (1k ms)
-	Duration sleep = dur!"usecs"(cast(int)sleepMS*1000);
+	enum float goodSPF = 1f / 120f; // 60 frames in 1 second (1k ms)
 
 	glfwSwapInterval(0); // Turn VSync off
 
@@ -464,20 +476,21 @@ int main(string[] args) {
 		// and wait for more to come
 		glfwPollEvents();
 
+		float secsPerFrame = glfwGetTime() - time;
 		frames[0]++; // +1 Frame
 
 		if(Clock.currAppTick.seconds != tickSeconds) {
-			float msPerFrame = 1000f/frames[0]; // ms per Frame
-			sleep = dur!"usecs"(msPerFrame < sleepMS+sleepMS/10 ? cast(int)sleepMS * 1000 : 0); // sleep only with good fps
-
-			byte f = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
-			glfwSetWindowTitle(window, text(APPNAME, " - FPS: ", framesPrefix[f], frames[0]," (", msPerFrame, "ms)").nt);
+			byte sign = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
+			glfwSetWindowTitle(window, format("%s - FPS: %s%d (%f)", APPNAME, framesPrefix[sign], frames[0], secsPerFrame/1000f).nt);
+			writeln(secsPerFrame/1000f);
 
 			tickSeconds = Clock.currAppTick.seconds;
 			frames[1] = frames[0];
 			frames[0] = 0;
 		}
-		Thread.getThis.sleep(sleep); // Zzz..
+		if(secsPerFrame < goodSPF) {
+			Thread.getThis.sleep(dur!"msecs"(lround((goodSPF-secsPerFrame)*1000f))); // Zzz..
+		}
 	}
 
 	writeln("Exiting...");
