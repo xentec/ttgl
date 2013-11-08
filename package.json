@@ -9,7 +9,7 @@
 		"gl3n":	"~master"
 	},
 	"importPaths": ["import"],
-	"libs-posix": ["glfw", "ILU", "IL"],
+	"libs-posix": ["glfw", "ILU", "IL", "X11"],
 	"copyFiles-all": ["res"],
 
 	"targetType": "executable",

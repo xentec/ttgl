@@ -101,6 +101,16 @@ int main(string[] args) {
 		glfwDestroyWindow(window);
 	}
 
+	// Set X class hint
+	version(Posix) {
+		import ttgl.ext;
+		XClassHint xch = {
+			res_name: "gl", 	// aka instance
+			res_class: APPNAME
+		};
+		XSetClassHint(glfwGetX11Display(), glfwGetX11Window(window), &xch);
+	}
+
 	// OpenGL = on
 	glfwMakeContextCurrent(window);
 
