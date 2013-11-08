@@ -103,7 +103,7 @@ int main(string[] args) {
 
 	// Set X class hint
 	version(Posix) {
-		import ttgl.ext;
+		import X11.Xutil, glfw.glfw3native;
 		XClassHint xch = {
 			res_name: "gl", 	// aka instance
 			res_class: APPNAME

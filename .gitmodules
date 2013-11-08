@@ -1,6 +1,0 @@
-[submodule "import/glfw"]
-	path = import/glfw
-	url = https://gist.github.com/6437428.git
-[submodule "import/il"]
-	path = import/il
-	url = https://gist.github.com/6443122.git

@@ -1,6 +1,6 @@
 {
 	"name": "ttgl",
-	"description": "A OpenGL learning initiative",
+	"description": "A OpenGL learning initiative in D",
 	"authors": ["Xentec"],
 	"license": "MIT",
 
@@ -9,8 +9,12 @@
 		"gl3n":	"~master"
 	},
 	"importPaths": ["import"],
+	"sourcePaths": ["import","src"],
+
 	"libs-posix": ["glfw", "ILU", "IL", "X11"],
-	"copyFiles-all": ["res"],
+
+	"preGenerateCommands-posix":["mkdir -p bin"],
+	"postGenerateCommands-posix":["cp -vnr res bin/"],
 
 	"targetType": "executable",
 	"targetPath": "bin"
