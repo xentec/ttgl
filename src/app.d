@@ -20,6 +20,7 @@ import gl3n.linalg;
 
 enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
+enum string TITLE_FORMAT = "%s - FPS: %s%d (%.3fms)";
 
 int main(string[] args) {
 	writeln(APPNAME, " ", VERSION["major"], ".",VERSION["minor"]);
@@ -481,8 +482,7 @@ int main(string[] args) {
 
 		if(Clock.currAppTick.seconds != tickSeconds) {
 			byte sign = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
-			glfwSetWindowTitle(window, format("%s - FPS: %s%d (%f)", APPNAME, framesPrefix[sign], frames[0], secsPerFrame/1000f).nt);
-			writeln(secsPerFrame/1000f);
+			glfwSetWindowTitle(window, std.string.format(TITLE_FORMAT, APPNAME, framesPrefix[sign], frames[0], secsPerFrame*1000f).nt);
 
 			tickSeconds = Clock.currAppTick.seconds;
 			frames[1] = frames[0];
