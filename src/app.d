@@ -12,7 +12,7 @@ import std.stdio;
 import std.string : chop, nt = toStringz, format;
 
 import glfw.glfw3;
-import il.il;
+import SOIL.SOIL;
 
 import derelict.opengl3.gl3;
 
@@ -326,12 +326,6 @@ int main(string[] args) {
 	//##########################
 	// Prepare to load images
 	write("Loading images... ");
-	// Init devIL
-	ilInit();
-
-	// Compatibility for < 3.3 OpenGL versions
-	ILenum IL_IMAGE_INTERNAL_FORMAT = glfwGetWindowAttrib(window, GLFW_OPENGL_PROFILE) == GLFW_OPENGL_CORE_PROFILE
-										? IL_IMAGE_FORMAT : IL_IMAGE_BPP;
 
 	// Texture files
 	string[string] imgFiles = [ "cat":"res/image-cat.png", "scenery":"res/image-scenery.jpg" ];
@@ -340,11 +334,6 @@ int main(string[] args) {
 	writeln(imgFilesNum);
 
 	// Generate
-	ILuint[] img;
-	img.length = imgFiles.length;
-	ilGenImages(imgFilesNum, img.ptr);
-	scope(exit) ilDeleteImages(imgFilesNum, img.ptr);
-
 	GLuint[] tex;
 	tex.length  = imgFiles.length;
 	glGenTextures(imgFilesNum, tex.ptr);
@@ -355,23 +344,33 @@ int main(string[] args) {
 		write("\t" ,i , ": ", file, "... ");
 
 		// Set correct context
-		ilBindImage(img[i]);
 		glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, tex[i]);
 
-		debug write("::IL:", img[i], "::TEX:", tex[i], "... ");
+		debug write("::TEX:", tex[i], "... ");
+
+		int width, height, channels;
+		ubyte* data;
 
 		// Actually loading
-		if(ilLoadImage(file.nt) == IL_FALSE) {
+		data = SOIL_load_image(file.nt, &width, &height, &channels, SOIL_LOAD_AUTO);
+		scope(exit) SOIL_free_image_data(data);
+		if(data is null) {
 			writeln("FAILED");
-			ILenum err = ilGetError();
-
-			// load all symbols and make an init for a single function call to get an error message. meh.
-			import il.ilu;
-			iluInit();
-			throw new Exception(text(err, " => ", iluErrorString(err)));
+			throw new Exception(text(SOIL_last_result()));
 		}
 		write("sampling... ");
+		debug write("::",width,"x",height,"x",channels,"... ");
+
+		GLenum format = channels == 4 ? GL_RGBA : GL_RGB;
+
+		// Upload!
+		glTexImage2D(GL_TEXTURE_2D, 0, format,
+									width, height,
+									0, format,
+									GL_UNSIGNED_BYTE, data);
+		// and link.
+		glUniform1i(glGetUniformLocation(shaderProgram, name.nt), i);
 
 		// Wrapper parameters
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -379,22 +378,6 @@ int main(string[] args) {
 		// Filters
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		ILint internalFormat = ilGetInteger(IL_IMAGE_INTERNAL_FORMAT),
-			width =	ilGetInteger(IL_IMAGE_WIDTH),
-			height = ilGetInteger(IL_IMAGE_HEIGHT),
-			format = ilGetInteger(IL_IMAGE_FORMAT);
-
-		debug write("::",width,"x",height,"x",std.string.format("0x%X",internalFormat),"::",std.string.format("0x%X",format),"... ");
-
-		// Upload!
-		glTexImage2D(GL_TEXTURE_2D, 0, internalFormat,
-									width, height,
-					 				0, format,
-					 				GL_UNSIGNED_BYTE, ilGetData());
-
-		// and link.
-		glUniform1i(glGetUniformLocation(shaderProgram, name.nt), i);
 
 		i++;
 		writeln("DONE");
