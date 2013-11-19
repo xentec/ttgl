@@ -20,6 +20,7 @@ import gl3n.linalg;
 
 enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
+enum string PATH = "res";
 enum string TITLE_FORMAT = "%s - FPS: %s%d (%.3fms)";
 
 int main(string[] args) {
@@ -200,7 +201,7 @@ int main(string[] args) {
 		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 	];
 
-	const char* vertexSource =
+	string vertexSource =
 		`	#version 430 core
 
 			in vec3 position;
@@ -222,7 +223,7 @@ int main(string[] args) {
 			}
 		`;
 
-	const char* fragmentSource =
+	string fragmentSource =
 		`	#version 430 core
 
 			in vec3 color;
@@ -237,6 +238,8 @@ int main(string[] args) {
 			}
 		`;
 
+	// Buffers
+	//##########################
 	// Create our Vertex Array Object
 	GLuint vao;
 	glGenVertexArrays(1, &vao);
@@ -251,42 +254,14 @@ int main(string[] args) {
 	// Upload the vertices
 	glBufferData(GL_ARRAY_BUFFER, float.sizeof * vertices.length, vertices.ptr, GL_STATIC_DRAW);
 
-	writeln("Compiling shaders...");
-	write("\tVertex... ");
-	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	scope(exit) glDeleteShader(vertexShader);
-	glShaderSource(vertexShader, 1, &vertexSource, null);
-
-	glCompileShader(vertexShader);
-	if(!isShaderCompiled(vertexShader)) {
-		writeln("FAILED");
-		throw new Exception(getShaderCompileLog(vertexShader));
-	} else
-		writeln("DONE");
-
-	write("\tFragment... ");
-	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	scope(exit) glDeleteShader(fragmentShader);
-	glShaderSource(fragmentShader, 1, &fragmentSource, null);
-
-	glCompileShader(fragmentShader);
-	if(!isShaderCompiled(fragmentShader)) {
-		writeln("FAILED");
-		throw new Exception(getShaderCompileLog(fragmentShader));
-	} else
-		writeln("DONE");
-
-	writeln("Starting the shader program...");
-	GLuint shaderProgram = glCreateProgram();
+	// Program
+	//##########################
+	// Use helper functions from below
+	GLuint shaderProgram = createProgram(vertexSource, fragmentSource);
 	scope(exit) glDeleteProgram(shaderProgram);
-
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
 
 	// Setting color vector output in fragment shader to outColor
 	glBindFragDataLocation(shaderProgram, 0, "outColor");
-	glLinkProgram(shaderProgram);
-	glUseProgram(shaderProgram);
 
 	// Vertices
 	//##########################
@@ -328,60 +303,28 @@ int main(string[] args) {
 	write("Loading images... ");
 
 	// Texture files
-	string[string] imgFiles = [ "cat":"res/image-cat.png", "scenery":"res/image-scenery.jpg" ];
+	string[] textures = [ "cat.png", "scenery.jpg" ];
 
-	int imgFilesNum = cast(int) imgFiles.length; // because Gen*() hates getting sane uint for size
-	writeln(imgFilesNum);
-
-	// Generate
 	GLuint[] tex;
-	tex.length  = imgFiles.length;
-	glGenTextures(imgFilesNum, tex.ptr);
-	scope(exit) glDeleteTextures(imgFilesNum, tex.ptr);
+	tex.length = textures.length;
 
-	uint i = 0;
-	foreach(string name, string file; imgFiles) {
-		write("\t" ,i , ": ", file, "... ");
+	writeln(textures.length);
+	foreach(uint i, ref string file; textures) {
+		string name = file.split(".")[0];
+		write("\t" ,i , ": ", name, "... \t");
 
-		// Set correct context
-		glActiveTexture(GL_TEXTURE0 + i);
-		glBindTexture(GL_TEXTURE_2D, tex[i]);
-
-		debug write("::TEX:", tex[i], "... ");
-
-		int width, height, channels;
-		ubyte* data;
-
-		// Actually loading
-		data = SOIL_load_image(file.nt, &width, &height, &channels, SOIL_LOAD_AUTO);
-		scope(exit) SOIL_free_image_data(data);
-		if(data is null) {
-			writeln("FAILED");
-			throw new Exception(text(SOIL_last_result()));
-		}
-		write("sampling... ");
-		debug write("::",width,"x",height,"x",channels,"... ");
-
-		GLenum format = channels == 4 ? GL_RGBA : GL_RGB;
-
-		// Upload!
-		glTexImage2D(GL_TEXTURE_2D, 0, format,
-									width, height,
-									0, format,
-									GL_UNSIGNED_BYTE, data);
+		// Load
+		glActiveTexture(GL_TEXTURE0+i);
+		tex[i] = createTexture(file);
 		// and link.
 		glUniform1i(glGetUniformLocation(shaderProgram, name.nt), i);
-
-		// Wrapper parameters
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-		// Filters
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		i++;
-		writeln("DONE");
 	}
+
+	// Clean textures when exiting
+	scope(exit)
+		foreach(ref t;tex)
+			glDeleteTextures(1, &t);
+
 
 	// Advanced Buffers
 	//##########################
@@ -491,19 +434,95 @@ int main(string[] args) {
 	return 0;
 }
 
-bool isShaderCompiled(in GLuint shader) {
-	GLint status;
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-	return status ? true : false;
+GLuint createTexture(string file) {
+	// Generate
+	GLuint tex;
+	glGenTextures(1, &tex);
+
+	// Set correct context
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	string path = PATH~ "/" ~file;
+	debug write("::FILE:", path, "::TEX:", tex, "... ");
+
+	int width, height, channels;
+	ubyte* data;
+
+	// Actually loading
+	data = SOIL_load_image(path.nt, &width, &height, &channels, SOIL_LOAD_AUTO);
+	scope(exit) SOIL_free_image_data(data);
+	if(data == null) {
+		writeln("FAILED");
+		throw new Exception(text(SOIL_last_result()));
+	}
+	write("sampling... ");
+	debug write("::",width,"x",height,"x",channels,"... ");
+
+	GLenum format = channels == 4 ? GL_RGBA : GL_RGB;
+
+	// Upload!
+	glTexImage2D(GL_TEXTURE_2D, 0, format,
+	             width, height,
+	             0, format,
+	             GL_UNSIGNED_BYTE, data);
+
+	// Wrapper parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	// Filters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	writeln("DONE");
+	return tex;
 }
 
-string getShaderCompileLog(in GLuint shader) {
-	GLint length;
-	char[] buffer;
+GLuint createShader(GLenum type, in string source) {
+	GLuint shader = glCreateShader(type);
 
-	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-	buffer.length = length;
-	glGetShaderInfoLog(shader, length, null, buffer.ptr);
+	const(char)* s = source.nt;
+	glShaderSource(shader, 1, &s, null);
 
-	return chop(buffer).idup;
+	glCompileShader(shader);
+	GLint ok;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
+
+	if(!ok) {
+		GLint length;
+		char[] buffer;
+
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
+		buffer.length = length;
+		glGetShaderInfoLog(shader, length, null, buffer.ptr);
+		throw new Exception(chop(buffer).idup);
+	}
+
+	return shader;
 }
+
+GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
+	GLuint shaderProgram = glCreateProgram();
+
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+
+	glLinkProgram(shaderProgram);
+	glUseProgram(shaderProgram);
+	return shaderProgram;
+}
+
+GLuint createProgram(in string vertexSource, in string fragmentSource) {
+	write("Creating shader program... ");
+	write("compiling shaders... ");
+
+	GLint vertex = createShader(GL_VERTEX_SHADER, vertexSource);
+	scope (exit) glDeleteShader(vertex);
+
+	GLint fragment = createShader(GL_FRAGMENT_SHADER, fragmentSource);
+	scope (exit) glDeleteShader(fragment);
+
+	writeln("DONE");
+	return createProgram(vertex,fragment);
+}
+
+
