@@ -54,10 +54,6 @@ int main(string[] args) {
 	scope(success) writeln("Have a nice day!");
 	scope(failure) writeln("._.");
 
-	// Lets load all symbols
-	DerelictGL3.load();
-//	DerelictGLFW3.load();
-
 	// GLFW error catcher
 	__gshared string glfwError;
 	GLFWerrorfun glfwError_cb = (int code, const(char)* msg) {
@@ -65,22 +61,50 @@ int main(string[] args) {
 	};
 	glfwSetErrorCallback(glfwError_cb);
 
-	write("Creating main window... ");
+	writeln("Initializing... ");
 	if(!glfwInit()) {
 		writeln("FAILED"); // Something is seriously wrong
 		throw new Exception(glfwError);
 	}
-
 	// Better safe than sorry
 	scope(exit) glfwTerminate();
 
-	// Setting the correct context
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	if (glfwExtensionSupported("GLX_ARB_create_context_profile")) {
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	{ // Getting actualy OpenGL version for a more precise window creation
+		// Spawn our silent spy!
+		glfwWindowHint(GLFW_VISIBLE, GL_FALSE);
+		GLFWwindow* test = glfwCreateWindow(50, 50, (APPNAME ~ " - GL Test!").nt, null, null);
+		if(!test) { // Spy failed! Abandon ship!
+			writeln("FAILED");
+			throw new Exception(glfwError);
+		}
+		scope(exit) glfwDestroyWindow(test);
+
+		// Lets load all symbols
+		DerelictGL3.load();
+		// OpenGL = on
+		glfwMakeContextCurrent(test);
+		// Sometimes loading everything is just not enough
+		DerelictGL3.reload();
+
+		writeln("\n", "OpenGL ", text(glGetString(GL_VERSION)),"\n");
 	}
+
+	if(DerelictGL3.loadedVersion < GLVersion.GL32) {
+		writeln("OpenGL 3.2 or better is required");
+		return 1;
+	}
+
+	// Window
+	//##########################
+	write("Creating main window... ");
+
+	// Back to daylight
+	glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
+	// Setting the correct context
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	debug glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
 	// Setting the accuracy of the buffers
@@ -114,9 +138,6 @@ int main(string[] args) {
 
 	// OpenGL = on
 	glfwMakeContextCurrent(window);
-
-	// Sometimes loading everything is just not enough
-	DerelictGL3.reload();
 
 	debug {
 		// In case shit hits the fan
@@ -202,7 +223,7 @@ int main(string[] args) {
 	];
 
 	string vertexSource =
-		`	#version 430 core
+		`	#version 150 core
 
 			in vec3 position;
 			in vec3 col;
@@ -224,7 +245,7 @@ int main(string[] args) {
 		`;
 
 	string fragmentSource =
-		`	#version 430 core
+		`	#version 150 core
 
 			in vec3 color;
 			in vec2 texcoord;
