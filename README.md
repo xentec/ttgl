@@ -7,7 +7,7 @@ You will need following libraries:
  - Phobos (of course)
  - GLFW3
  - X11
- - DevIL
+ - SOIL
  
 To build TTGL install [dub](http://code.dlang.org/) and just run
 
