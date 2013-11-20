@@ -5,15 +5,13 @@ out vec4 outColor;
 
 uniform sampler2D fb;
 
-const float blurSizeH = 1.0 / 300.0;
-const float blurSizeV = 1.0 / 200.0;
-const int samplesN = 4;
-
 void main() {
-    vec4 sum = vec4(0.0);
-    float samples = pow((samplesN+1) * 2.0, 2.0);
-    for (int x = -samplesN; x <= samplesN; x++)
-        for (int y = -samplesN; y <= samplesN; y++)
-            sum += texture(fb, vec2(texcoord.x + x * blurSizeH, texcoord.y + y * blurSizeV)) / samples;
-    outColor = sum;
+	vec4 s1 = texture(fb, texcoord - 1.0 / 300.0 - 1.0 / 200.0);
+	vec4 s2 = texture(fb, texcoord + 1.0 / 300.0 - 1.0 / 200.0);
+	vec4 s3 = texture(fb, texcoord - 1.0 / 300.0 + 1.0 / 200.0);
+	vec4 s4 = texture(fb, texcoord + 1.0 / 300.0 + 1.0 / 200.0);
+	vec4 sx = 4.0 * ((s4 + s3) - (s2 + s1));
+	vec4 sy = 4.0 * ((s2 + s4) - (s1 + s3));
+	vec4 sobel = sqrt(sx * sx + sy * sy);
+	outColor = sobel;
 }
