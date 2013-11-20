@@ -6,5 +6,5 @@ out vec4 outColor;
 uniform sampler2D fb;
 
 void main() {
-    outColor = texture(fb, texcoord);
+    outColor = vec4(1.0, 1.0, 1.0, 1.0) -  texture(fb, texcoord);
 }
