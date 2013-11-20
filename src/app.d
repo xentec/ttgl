@@ -24,6 +24,8 @@ enum string TITLE_FORMAT = "%s - FPS: %s%d (%.3fms)";
 enum TAU = PI*2;
 real rad(in real angle) { return angle*TAU/360.0; }
 
+GLuint c_screenProgram;
+
 int main(string[] args) {
 	writeln(APPNAME, " ", VERSION["major"], ".",VERSION["minor"]);
 	debug {
@@ -101,6 +103,7 @@ int main(string[] args) {
 
 	// Back to daylight
 	glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 	// Setting the correct context
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -263,8 +266,8 @@ int main(string[] args) {
 	//##########################
 	writeln("Loading vertices...");
 
-	// Tell our vertex shader how to use the vertices from our VBO
 	{
+		// Tell our vertex shader how to use the vertices from our VBO
 		GLint posAttrib = glGetAttribLocation(sceneProgram, "position");
 		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, null);
 		glEnableVertexAttribArray(posAttrib);
@@ -274,6 +277,7 @@ int main(string[] args) {
 		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, cast(void*) (3 * GLfloat.sizeof));
 		glEnableVertexAttribArray(colAttrib);
 
+		// ...and how picture them
 		GLint texAttrib = glGetAttribLocation(sceneProgram, "tex");
 		glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, cast(void*) (6 * GLfloat.sizeof));
 		glEnableVertexAttribArray(texAttrib);
@@ -286,8 +290,7 @@ int main(string[] args) {
 	mat4 model;
 	GLuint uniModel = glGetUniformLocation(sceneProgram, "model");
 
-	mat4 view = mat4.look_at(vec3(2.5f, 2.5f, 2.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
-
+	mat4 view = mat4.look_at(vec3(2.0f, 2.0f, 1.75f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
 	GLuint uniView = glGetUniformLocation(sceneProgram, "view");
 	glUniformMatrix4fv(uniView, 1, GL_TRUE, view.value_ptr);
 
@@ -417,9 +420,15 @@ int main(string[] args) {
 	//##################################
 	//##################################
 	// Input handler
+	c_screenProgram = screenProgram;
 	extern (C) void input_cb(GLFWwindow* window, int key, int scancode, int action, int mods) {
 		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) // Make it close itself on ESC
 			glfwSetWindowShouldClose(window, GL_TRUE);
+		if(key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+			static int e = 0;
+			if(++e > 5) e = 0;
+			glUniform1i(glGetUniformLocation(c_screenProgram, "effectFlag"), e);
+		}
 	}
 	glfwSetKeyCallback(window, &input_cb); //  Since glfw is a C library, we can't use inline function syntax
 
@@ -461,7 +470,7 @@ int main(string[] args) {
 
 		// Rotate it
 		model = mat4.identity;
-		model.rotate(rad(time*180f), vec3(0.0f, 0.0f, 1.0f));
+		model.rotate(rad(time*30f), vec3(0.0f, 0.0f, 1.0f));
 		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
 
 		// Draw the 'real' cube
