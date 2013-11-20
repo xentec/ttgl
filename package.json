@@ -11,6 +11,8 @@
 	"importPaths": ["import"],
 	"sourcePaths": ["import","src"],
 
+	"stringImportPaths": ["res"],
+
 	"libs-posix": ["glfw", "SOIL", "X11"],
 
 	"preGenerateCommands-posix":["mkdir -p bin"],

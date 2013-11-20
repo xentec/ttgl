@@ -1,7 +1,5 @@
 
 
-import ttgl.math;
-
 import core.thread: Thread;
 
 import std.array : split;
@@ -22,6 +20,9 @@ enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
 enum string PATH = "res";
 enum string TITLE_FORMAT = "%s - FPS: %s%d (%.3fms)";
+
+enum TAU = PI*2;
+real rad(in real angle) { return angle*TAU/360.0; }
 
 int main(string[] args) {
 	writeln(APPNAME, " ", VERSION["major"], ".",VERSION["minor"]);
@@ -155,8 +156,22 @@ int main(string[] args) {
 	//##################################
 	//##################################
 
-	// Our triangle
-	float vertices[] = [
+	// VAOs
+	//##########################
+	// Create our Vertex Array Object
+	GLuint sceneVAO, screenVAO;
+	glGenVertexArrays(1, &sceneVAO);
+	glGenVertexArrays(1, &screenVAO);
+	scope(exit) glDeleteVertexArrays(1, &sceneVAO);
+	scope(exit) glDeleteVertexArrays(1, &screenVAO);
+
+	//####################################################
+	// Scene
+	//####################################################
+	glBindVertexArray(sceneVAO);
+
+	// Our cube
+	immutable GLfloat sceneVertices[] = [
 		//  Position		 Color             Texcoords
 		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
@@ -222,100 +237,62 @@ int main(string[] args) {
 		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
 	];
 
-	string vertexSource =
-		`	#version 150 core
-
-			in vec3 position;
-			in vec3 col;
-			in vec2 tex;
-
-			out vec3 color;
-			out vec2 texcoord;
-
-			uniform mat4 model;
-			uniform mat4 view;
-			uniform mat4 proj;
-			uniform vec3 overrideColor;
-
-			void main()	{
-				texcoord = tex;	// Just passing by
-				color = col * overrideColor;	// Mixing!
-				gl_Position = proj * view * model * vec4(position, 1.0); //Put vertices in right position
-			}
-		`;
-
-	string fragmentSource =
-		`	#version 150 core
-
-			in vec3 color;
-			in vec2 texcoord;
-			out vec4 outColor;
-
-			uniform sampler2D cat;
-			uniform sampler2D scenery;
-
-			void main() {	// texture mixer:  cat	+	scene		with ratio of
-				outColor = mix(texture(cat, texcoord), texture(scenery, texcoord), 0.5) * vec4(color, 1.0); // Color per vertex = rainbows
-			}
-		`;
-
 	// Buffers
 	//##########################
-	// Create our Vertex Array Object
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	scope(exit) glDeleteVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-
 	// Create vertex buffes to hold our vertices
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
-	scope(exit) glDeleteBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	GLuint sceneVBO;
+	glGenBuffers(1, &sceneVBO);
+	scope(exit) glDeleteBuffers(1, &sceneVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, sceneVBO);
 	// Upload the vertices
-	glBufferData(GL_ARRAY_BUFFER, float.sizeof * vertices.length, vertices.ptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, GLfloat.sizeof * sceneVertices.length, sceneVertices.ptr, GL_STATIC_DRAW);
 
 	// Program
 	//##########################
 	// Use helper functions from below
-	GLuint shaderProgram = createProgram(vertexSource, fragmentSource);
-	scope(exit) glDeleteProgram(shaderProgram);
+	GLuint sceneProgram = createProgram(import("scene.vert"), import("scene.frag"));
+	scope(exit) glDeleteProgram(sceneProgram);
 
 	// Setting color vector output in fragment shader to outColor
-	glBindFragDataLocation(shaderProgram, 0, "outColor");
+	glBindFragDataLocation(sceneProgram, 0, "outColor");
+
+	// The device has been modified...
+	glUseProgram(sceneProgram);
 
 	// Vertices
 	//##########################
 	writeln("Loading vertices...");
 
 	// Tell our vertex shader how to use the vertices from our VBO
-	GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
-	glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * float.sizeof, null);
-	glEnableVertexAttribArray(posAttrib);
+	{
+		GLint posAttrib = glGetAttribLocation(sceneProgram, "position");
+		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, null);
+		glEnableVertexAttribArray(posAttrib);
 
-	// ...and how to color them
-	GLint colAttrib = glGetAttribLocation(shaderProgram, "col");
-	glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * float.sizeof, cast(void*) (3 * float.sizeof));
-	glEnableVertexAttribArray(colAttrib);
+		// ...and how to color them
+		GLint colAttrib = glGetAttribLocation(sceneProgram, "col");
+		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, cast(void*) (3 * GLfloat.sizeof));
+		glEnableVertexAttribArray(colAttrib);
 
-	GLint texAttrib = glGetAttribLocation(shaderProgram, "tex");
-	glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * float.sizeof, cast(void*) (6 * float.sizeof));
-	glEnableVertexAttribArray(texAttrib);
+		GLint texAttrib = glGetAttribLocation(sceneProgram, "tex");
+		glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, cast(void*) (6 * GLfloat.sizeof));
+		glEnableVertexAttribArray(texAttrib);
+	}
 
 	// Transformations
 	//##########################
 	debug writeln("Calculating Matrices...");
 	// Enter the Matrix!
 	mat4 model;
-	GLuint uniModel = glGetUniformLocation(shaderProgram, "model");
+	GLuint uniModel = glGetUniformLocation(sceneProgram, "model");
 
 	mat4 view = mat4.look_at(vec3(2.5f, 2.5f, 2.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
 
-	GLuint uniView = glGetUniformLocation(shaderProgram, "view");
+	GLuint uniView = glGetUniformLocation(sceneProgram, "view");
 	glUniformMatrix4fv(uniView, 1, GL_TRUE, view.value_ptr);
 
 	mat4 proj = mat4.perspective(800f, 600f, 45.0f, 1.0f, 10.0f);
-	GLuint uniProj = glGetUniformLocation(shaderProgram, "proj");
+	GLuint uniProj = glGetUniformLocation(sceneProgram, "proj");
 	glUniformMatrix4fv(uniProj, 1, GL_TRUE, proj.value_ptr);
 
 	// Textures
@@ -338,22 +315,104 @@ int main(string[] args) {
 		glActiveTexture(GL_TEXTURE0+i);
 		tex[i] = createTexture(file);
 		// and link.
-		glUniform1i(glGetUniformLocation(shaderProgram, name.nt), i);
+		glUniform1i(glGetUniformLocation(sceneProgram, name.nt), i);
 	}
-
 	// Clean textures when exiting
 	scope(exit)
 		foreach(ref t;tex)
 			glDeleteTextures(1, &t);
 
-
-	// Advanced Buffers
-	//##########################
-	// Depth
-	glEnable(GL_DEPTH_TEST);
-
 	// Misc
-	GLint uniColor = glGetUniformLocation(shaderProgram, "overrideColor");
+	//##########################
+	GLint uniColor = glGetUniformLocation(sceneProgram, "overrideColor");
+
+	//####################################################
+	// Screen
+	//####################################################
+	// aka pretty much the same as above
+	glBindVertexArray(screenVAO);
+
+	// Screen vertices
+	GLfloat screenVertices[] = [
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		 1.0f,  1.0f,  1.0f, 1.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+
+		 1.0f, -1.0f,  1.0f, 0.0f,
+		-1.0f, -1.0f,  0.0f, 0.0f,
+		-1.0f,  1.0f,  0.0f, 1.0f
+	];
+
+	// Buffers
+	//##########################
+	// Create vertex buffes to hold our vertices
+	GLuint screenVBO;
+	glGenBuffers(1, &screenVBO);
+	scope(exit) glDeleteBuffers(1, &screenVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
+	// Upload the vertices
+	glBufferData(GL_ARRAY_BUFFER, GLfloat.sizeof * screenVertices.length, screenVertices.ptr, GL_STATIC_DRAW);
+
+	// Program
+	//##########################
+	GLuint screenProgram = createProgram(import("screen.vert"), import("screen.frag"));
+	scope(exit) glDeleteProgram(screenProgram);
+
+	glBindFragDataLocation(screenProgram, 0, "outColor");
+
+	// The device has been modified... again!
+	glUseProgram(screenProgram);
+	glUniform1i(glGetUniformLocation(screenProgram, "fb"), 0);
+
+	// Vertices
+	//##########################
+	{
+		GLint posAttrib = glGetAttribLocation(screenProgram, "position");
+		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * GLfloat.sizeof, null);
+		glEnableVertexAttribArray(posAttrib);
+
+		GLint texAttrib = glGetAttribLocation(screenProgram, "tex");
+		glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * GLfloat.sizeof, cast(void*) (2 * GLfloat.sizeof));
+		glEnableVertexAttribArray(texAttrib);
+	}
+
+	// Framebuffer
+	//##########################
+	GLuint frameBuffer;
+	glGenFramebuffers(1, &frameBuffer);
+	scope(exit) glDeleteFramebuffers(1, &frameBuffer);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+	GLuint colorBuffer;
+		glGenTextures(1, &colorBuffer);
+		scope(exit) glDeleteTextures(1, &colorBuffer);
+
+		glBindTexture(GL_TEXTURE_2D, colorBuffer);
+
+		glTexImage2D(GL_TEXTURE_2D, 
+					 0, GL_RGB, 
+					 800, 600, 
+					 0, GL_RGB, 
+					 GL_UNSIGNED_BYTE, null);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, 
+							   GL_COLOR_ATTACHMENT0, 
+							   GL_TEXTURE_2D, colorBuffer, 0);
+
+	GLuint rboDepthStencil;
+		glGenRenderbuffers(1, &rboDepthStencil);
+		scope(exit) glDeleteRenderbuffers(1, &rboDepthStencil);
+
+		glBindRenderbuffer(GL_RENDERBUFFER, rboDepthStencil);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, 
+							  GL_DEPTH_STENCIL_ATTACHMENT, 
+							  GL_RENDERBUFFER, rboDepthStencil);
 
 	//##################################
 	//##################################
@@ -383,6 +442,18 @@ int main(string[] args) {
 	while(!glfwWindowShouldClose(window)) {
 		float time = glfwGetTime();
 		//##############
+
+		// Scene
+		//##########################
+		glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+		glBindVertexArray(sceneVAO);
+		glUseProgram(sceneProgram);
+		glEnable(GL_DEPTH_TEST);
+
+		foreach(uint i, ref t; tex) {
+			glActiveTexture(GL_TEXTURE0 +i);
+			glBindTexture(GL_TEXTURE_2D, t);
+		}
 
 		// white background
 		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -427,6 +498,19 @@ int main(string[] args) {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 			glUniform3f(uniColor, 1.0f, 1.0f, 1.0f);
 		}
+
+		// Screen
+		//##########################
+		// Bind default framebuffer and draw contents of our framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindVertexArray(screenVAO);
+		glDisable(GL_DEPTH_TEST);
+		glUseProgram(screenProgram);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, colorBuffer);
+
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		//##############
 		// Spit it out
@@ -482,9 +566,10 @@ GLuint createTexture(string file) {
 	GLenum format = channels == 4 ? GL_RGBA : GL_RGB;
 
 	// Upload!
-	glTexImage2D(GL_TEXTURE_2D, 0, format,
-	             width, height,
-	             0, format,
+	glTexImage2D(GL_TEXTURE_2D, 
+	             0, format, 
+	             width, height, 
+	             0, format, 
 	             GL_UNSIGNED_BYTE, data);
 
 	// Wrapper parameters
@@ -528,7 +613,6 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
 	glAttachShader(shaderProgram, fragmentShader);
 
 	glLinkProgram(shaderProgram);
-	glUseProgram(shaderProgram);
 	return shaderProgram;
 }
 
@@ -545,5 +629,3 @@ GLuint createProgram(in string vertexSource, in string fragmentSource) {
 	writeln("DONE");
 	return createProgram(vertex,fragment);
 }
-
-
