@@ -6,6 +6,7 @@ import std.array : split;
 import std.conv : text;
 import std.datetime : Clock, Duration, dur;
 import std.math;
+import std.random;
 import std.stdio;
 import std.string : chop, nt = toStringz, format;
 
@@ -197,10 +198,12 @@ int main(string[] args) {
 	enum s = CUBES;
 	GLfloat[13*s*s] cubeData;
 	Cuboid cube;
+	auto gen = Random(unpredictableSeed);
 
 	for(uint x = 0; x < s; x++) {
 		for(uint y = 0; y < s; y++) {
 			cube.position = [2*x,2*y,0];
+			cube.color = [uniform(0f, 1f, gen), uniform(0f, 1f, gen), uniform(0f, 1f, gen)]; // color cube field
 			cubeData[x*s*13+y*13 .. x*s*13+y*13+13] = cube.array();
 		}
 	}
