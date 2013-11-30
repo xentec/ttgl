@@ -57,7 +57,7 @@ void main() {
 		else if(texcoord.x > 0.50 && texcoord.x < 0.75)
 			outColor = blur_box(fb, texcoord, 4, 1.0/300.0, 1.0/200.0);
 		else if(texcoord.x > 0.75)
-			outColor = greyscale(fb, texcoord);	
+			outColor = greyscale(fb, texcoord);
 		break;
 	default:
 	    outColor = texture(fb, texcoord);

@@ -11,7 +11,7 @@
 	"importPaths": ["import"],
 	"sourcePaths": ["import","src"],
 
-	"stringImportPaths": ["res"],
+	"stringImportPaths": ["src/shader"],
 
 	"libs-posix": ["glfw", "SOIL", "X11"],
 

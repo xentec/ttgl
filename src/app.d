@@ -20,6 +20,7 @@ enum string APPNAME = "TTGL";
 enum int[string] VERSION = [ "major":1, "minor":0 ];
 enum string PATH = "res";
 enum string TITLE_FORMAT = "%s - FPS: %s%d (%.3fms)";
+enum uint CUBES = 8;
 
 enum TAU = PI*2;
 real rad(in real angle) { return angle*TAU/360.0; }
@@ -27,7 +28,7 @@ real rad(in real angle) { return angle*TAU/360.0; }
 GLuint c_screenProgram;
 
 int main(string[] args) {
-	writeln(APPNAME, " ", VERSION["major"], ".",VERSION["minor"]);
+	writeln(APPNAME, " ", VERSION["major"], ".", VERSION["minor"]);
 	debug {
 		writeln("==============================");
 		writeln("Arguements: ");
@@ -148,8 +149,7 @@ int main(string[] args) {
 		GLDEBUGPROC glError_cb = (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
 			try {
 				stderr.writeln("[",glfwGetTime(),"] ","glError: \tSource: ", source, "; Type: ", type, "; ID: ", id, "; Severity: ", severity, "; Length: ", length, "\n"
-						"\t\t", text(message), "\n",
-						"\t\t", userParam);
+						"\t\t", text(message), "\n");
 				stderr.flush();
 			} catch (Throwable e) {	}
 		};
@@ -173,94 +173,57 @@ int main(string[] args) {
 	//####################################################
 	glBindVertexArray(sceneVAO);
 
-	// Our cube
-	immutable GLfloat sceneVertices[] = [
-		//  Position		 Color             Texcoords
-		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		// Bottom
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+	// Program
+	//##########################
+	// Use helper functions from below
+	GLuint sceneProgram = createProgram(import("scene.v.glsl"), import("scene.f.glsl"), import("scene.g.glsl"));
+	scope(exit) glDeleteProgram(sceneProgram);
 
+	// The device has been modified...
+	glUseProgram(sceneProgram);
 
-		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		// Top
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+	// Data
+	//##########################
 
+	struct Cuboid {
+		float[3] position;
+		float[3] sizes = [1f,1f,1f];
+		float[3] color = [1f,1f,1f];
+		float[4] tex = [0f,0f,1f,1f];
+		float[] array() {
+			return position ~ sizes ~ color ~ tex;
+		}
+	}
+	enum s = CUBES;
+	GLfloat[13*s*s] cubeData;
+	Cuboid cube;
 
-		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-
-		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-
-
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-
-		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-
-
-		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-		 0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-
-		 0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		-0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-
-
-		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-		 0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-
-		 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
-
-
-
-		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-		 1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-		 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-
-		 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-		-1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-		-1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-	];
+	for(uint x = 0; x < s; x++) {
+		for(uint y = 0; y < s; y++) {
+			cube.position = [2*x,2*y,0];
+			cubeData[x*s*13+y*13 .. x*s*13+y*13+13] = cube.array();
+		}
+	}
 
 	// Buffers
 	//##########################
+	writeln("Filling buffers...");
 	// Create vertex buffes to hold our vertices
 	GLuint sceneVBO;
 	glGenBuffers(1, &sceneVBO);
 	scope(exit) glDeleteBuffers(1, &sceneVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, sceneVBO);
 	// Upload the vertices
-	glBufferData(GL_ARRAY_BUFFER, GLfloat.sizeof * sceneVertices.length, sceneVertices.ptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, GLfloat.sizeof * cubeData.length, cubeData.ptr, GL_STATIC_DRAW);
 
-	// Program
-	//##########################
-	// Use helper functions from below
-	GLuint sceneProgram = createProgram(import("scene.vert"), import("scene.frag"));
-	scope(exit) glDeleteProgram(sceneProgram);
-
-	// Setting color vector output in fragment shader to outColor
-	glBindFragDataLocation(sceneProgram, 0, "outColor");
-
-	// The device has been modified...
-	glUseProgram(sceneProgram);
+	// Verify
+	debug {
+		GLfloat f[s*s*13];
+		glGetBufferSubData(GL_ARRAY_BUFFER, 0, f.sizeof, f.ptr);
+		for(uint x = 0; x < s; x++)
+			for(uint y = 0; y < s; y++)
+				writeln('\t',"ARRAY[",x*s*13+y*13,"]",f[x*s*13+y*13..x*s*13+y*13+13]);
+	}
 
 	// Vertices
 	//##########################
@@ -268,33 +231,37 @@ int main(string[] args) {
 
 	{
 		// Tell our vertex shader how to use the vertices from our VBO
-		GLint posAttrib = glGetAttribLocation(sceneProgram, "position");
-		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, null);
-		glEnableVertexAttribArray(posAttrib);
+		GLint position = glGetAttribLocation(sceneProgram, "position");
+		glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 13*GLfloat.sizeof, null);
+		glEnableVertexAttribArray(position);
+
+		GLint sizes = glGetAttribLocation(sceneProgram, "sizes");
+		glVertexAttribPointer(sizes, 3, GL_FLOAT, GL_FALSE, 13*GLfloat.sizeof, cast(void*) (3 * GLfloat.sizeof));
+		glEnableVertexAttribArray(sizes);
 
 		// ...and how to color them
-		GLint colAttrib = glGetAttribLocation(sceneProgram, "col");
-		glVertexAttribPointer(colAttrib, 3, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, cast(void*) (3 * GLfloat.sizeof));
-		glEnableVertexAttribArray(colAttrib);
+		GLint color = glGetAttribLocation(sceneProgram, "color");
+		glVertexAttribPointer(color, 3, GL_FLOAT, GL_FALSE, 13*GLfloat.sizeof, cast(void*) (6 * GLfloat.sizeof));
+		glEnableVertexAttribArray(color);
 
 		// ...and how picture them
-		GLint texAttrib = glGetAttribLocation(sceneProgram, "tex");
-		glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 8 * GLfloat.sizeof, cast(void*) (6 * GLfloat.sizeof));
-		glEnableVertexAttribArray(texAttrib);
+		GLint tex = glGetAttribLocation(sceneProgram, "tex");
+		glVertexAttribPointer(tex, 4, GL_FLOAT, GL_FALSE, 13*GLfloat.sizeof, cast(void*) (9 * GLfloat.sizeof));
+		glEnableVertexAttribArray(tex);
 	}
 
 	// Transformations
 	//##########################
 	debug writeln("Calculating Matrices...");
 	// Enter the Matrix!
-	mat4 model;
+	mat4 model = mat4.identity;
 	GLuint uniModel = glGetUniformLocation(sceneProgram, "model");
 
-	mat4 view = mat4.look_at(vec3(2.0f, 2.0f, 1.75f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
+	mat4 view = mat4.look_at(vec3(-3f, -3f, 1.0f), vec3(s/2f, s/2f, 1.0), vec3(0.0f, 0.0f, 1.0f));
 	GLuint uniView = glGetUniformLocation(sceneProgram, "view");
 	glUniformMatrix4fv(uniView, 1, GL_TRUE, view.value_ptr);
 
-	mat4 proj = mat4.perspective(800f, 600f, 45.0f, 1.0f, 10.0f);
+	mat4 proj = mat4.perspective(800f, 600f, 45.0f, 1.0f, 512.0f);
 	GLuint uniProj = glGetUniformLocation(sceneProgram, "proj");
 	glUniformMatrix4fv(uniProj, 1, GL_TRUE, proj.value_ptr);
 
@@ -327,7 +294,7 @@ int main(string[] args) {
 
 	// Misc
 	//##########################
-	GLint uniColor = glGetUniformLocation(sceneProgram, "overrideColor");
+	//GLint uniColor = glGetUniformLocation(sceneProgram, "overrideColor");
 
 	//####################################################
 	// Screen
@@ -336,7 +303,7 @@ int main(string[] args) {
 	glBindVertexArray(screenVAO);
 
 	// Screen vertices
-	GLfloat screenVertices[] = [
+	GLfloat[2*3*4] screenVertices = [
 		-1.0f,  1.0f,  0.0f, 1.0f,
 		 1.0f,  1.0f,  1.0f, 1.0f,
 		 1.0f, -1.0f,  1.0f, 0.0f,
@@ -354,14 +321,12 @@ int main(string[] args) {
 	scope(exit) glDeleteBuffers(1, &screenVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
 	// Upload the vertices
-	glBufferData(GL_ARRAY_BUFFER, GLfloat.sizeof * screenVertices.length, screenVertices.ptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, screenVertices.sizeof, screenVertices.ptr, GL_STATIC_DRAW);
 
 	// Program
 	//##########################
-	GLuint screenProgram = createProgram(import("screen.vert"), import("screen.frag"));
+	GLuint screenProgram = createProgram(import("screen.v.glsl"), import("screen.f.glsl"));
 	scope(exit) glDeleteProgram(screenProgram);
-
-	glBindFragDataLocation(screenProgram, 0, "outColor");
 
 	// The device has been modified... again!
 	glUseProgram(screenProgram);
@@ -447,6 +412,7 @@ int main(string[] args) {
 
 	enum float goodSPF = 1f / 120f; // 60 frames in 1 second (1k ms)
 
+	glViewport(0, 0, 800, 600);
 	glfwSwapInterval(0); // Turn VSync off
 
 	writeln("Entering main loop...");
@@ -471,14 +437,12 @@ int main(string[] args) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Rotate it
-		model = mat4.identity;
-		model.rotate(rad(time*30f), vec3(0.0f, 0.0f, 1.0f));
-		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
+		glUniformMatrix4fv(uniModel, 1, GL_TRUE, quat.axis_rotation(rad(time*10f), vec3(0.0f, 0.0f, 1.0f)).to_matrix!(4,4).value_ptr);
 
 		// Draw the 'real' cube
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		glDrawArrays(GL_POINTS, 0, s*s);
 
-		// Now time for advanced procedures
+		/* Now time for advanced procedures
 		{
 			glEnable(GL_STENCIL_TEST);
 			scope(exit) glDisable(GL_STENCIL_TEST); // Just in case this scope goes fubar at runtime
@@ -509,6 +473,7 @@ int main(string[] args) {
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 			glUniform3f(uniColor, 1.0f, 1.0f, 1.0f);
 		}
+		*/
 
 		// Screen
 		//##########################
@@ -611,23 +576,28 @@ GLuint createShader(GLenum type, in string source) {
 		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
 		buffer.length = length;
 		glGetShaderInfoLog(shader, length, null, buffer.ptr);
-		throw new Exception(chop(buffer).idup);
+		throw new Exception(chop(buffer).idup ~ source[0..32]);
 	}
 
 	return shader;
 }
 
-GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
+GLuint createProgram(GLint vertexShader, GLint fragmentShader, GLint geometryShader = -1) {
 	GLuint shaderProgram = glCreateProgram();
 
 	glAttachShader(shaderProgram, vertexShader);
 	glAttachShader(shaderProgram, fragmentShader);
+	if(geometryShader >= 0)
+		glAttachShader(shaderProgram, geometryShader);
+
+	// Setting color vector output in fragment shader to outColor
+	glBindFragDataLocation(shaderProgram, 0, "color");
 
 	glLinkProgram(shaderProgram);
 	return shaderProgram;
 }
 
-GLuint createProgram(in string vertexSource, in string fragmentSource) {
+GLuint createProgram(in string vertexSource, in string fragmentSource, in string geometrySource = "") {
 	write("Creating shader program... ");
 	write("compiling shaders... ");
 
@@ -637,6 +607,12 @@ GLuint createProgram(in string vertexSource, in string fragmentSource) {
 	GLint fragment = createShader(GL_FRAGMENT_SHADER, fragmentSource);
 	scope (exit) glDeleteShader(fragment);
 
+	GLint geometry = -1;
+	if(geometrySource.length) {
+		geometry = createShader(GL_GEOMETRY_SHADER, geometrySource);
+	}
+	scope (exit) if(geometrySource.length) glDeleteShader(geometry);
+
 	writeln("DONE");
-	return createProgram(vertex,fragment);
+	return createProgram(vertex,fragment,geometry);
 }
