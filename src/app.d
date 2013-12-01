@@ -409,11 +409,12 @@ int main(string[] args) {
 	glfwSetFramebufferSizeCallback(window, &resize_cb);
 
 	// Initialising frame counter
-	uint[2] frames;
-	enum framesPrefix = "~+-";
-	ulong tickSeconds = Clock.currAppTick.seconds;
+	enum framesPrefix = "-~+";
 
 	enum float goodSPF = 1f / 120f; // 60 frames in 1 second (1k ms)
+	float totalTime = 0;
+	uint[2] totalFrames = 0;
+	ulong tickSeconds = Clock.currAppTick.seconds;
 
 	glViewport(0, 0, 800, 600);
 	glfwSwapInterval(0); // Turn VSync off
@@ -497,19 +498,23 @@ int main(string[] args) {
 		// and wait for more to come
 		glfwPollEvents();
 
-		float secsPerFrame = glfwGetTime() - time;
-		frames[0]++; // +1 Frame
+		float SPF = glfwGetTime() - time;
+		totalFrames[0]++; // +1 Frame
+		totalTime += SPF;
 
 		if(Clock.currAppTick.seconds != tickSeconds) {
-			byte sign = frames[0] == frames[1] ? 0 : frames[0] > frames[1] ? 1 : 2;
-			glfwSetWindowTitle(window, std.string.format(TITLE_FORMAT, APPNAME, framesPrefix[sign], frames[0], secsPerFrame*1000f).nt);
+			float avrTime = totalTime / totalFrames[0] * 1000f;
+			char sign = framesPrefix[cmp(totalFrames[0], totalFrames[1])+1];
+			glfwSetWindowTitle(window, std.string.format(TITLE_FORMAT, APPNAME, sign, totalFrames[0], avrTime).nt);
 
 			tickSeconds = Clock.currAppTick.seconds;
-			frames[1] = frames[0];
-			frames[0] = 0;
+			totalTime = 0;
+			totalFrames[1] = totalFrames[0]; // Move current time for later comparison
+			totalFrames[0] = 0;
+
 		}
-		if(secsPerFrame < goodSPF) {
-			Thread.getThis.sleep(dur!"msecs"(lround((goodSPF-secsPerFrame)*1000f))); // Zzz..
+		if(SPF < goodSPF) {
+			Thread.getThis.sleep(dur!"msecs"(lrint((goodSPF-SPF)*1000f))); // Zzz..
 		}
 	}
 
@@ -618,4 +623,8 @@ GLuint createProgram(in string vertexSource, in string fragmentSource, in string
 
 	writeln("DONE");
 	return createProgram(vertex,fragment,geometry);
+}
+
+byte cmp(T)(T a, T b) { // Simple compare function
+	return a == b ? 0 : a > b ? 1 : -1;
 }
