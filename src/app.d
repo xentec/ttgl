@@ -146,13 +146,37 @@ int main(string[] args) {
 	glfwMakeContextCurrent(window);
 
 	debug {
+		enum string[GLenum] ErrorTable = [
+			// Source
+			GL_DEBUG_SOURCE_API: "API",
+			GL_DEBUG_SOURCE_WINDOW_SYSTEM: "Window System",
+			GL_DEBUG_SOURCE_SHADER_COMPILER: "Shader Compiler",
+			GL_DEBUG_SOURCE_THIRD_PARTY: "Third Party",
+			GL_DEBUG_SOURCE_APPLICATION: "Application",
+			GL_DEBUG_SOURCE_OTHER: "Other",
+			// Type
+			GL_DEBUG_TYPE_ERROR: "Error",
+			GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: "Deprecated",
+			GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: "Undefined",
+			GL_DEBUG_TYPE_PORTABILITY: "Portability",
+			GL_DEBUG_TYPE_PERFORMANCE: "Performance",
+			GL_DEBUG_TYPE_OTHER: "Other",
+			GL_DEBUG_TYPE_MARKER: "Marker",
+			// Severity
+			GL_DEBUG_SEVERITY_HIGH: "High",
+			GL_DEBUG_SEVERITY_MEDIUM: "Medium",
+			GL_DEBUG_SEVERITY_LOW: "Low",
+			GL_DEBUG_SEVERITY_NOTIFICATION: "Notify",
+		];
 		// In case shit hits the fan
 		GLDEBUGPROC glError_cb = (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
 			try {
-				stderr.writeln("[",glfwGetTime(),"] ","glError: \tSource: ", source, "; Type: ", type, "; ID: ", id, "; Severity: ", severity, "; Length: ", length, "\n"
+				stderr.writeln("[",glfwGetTime(),"] ","glError: \tID: ", id, "; Source: ", ErrorTable[source], "; Type: ", ErrorTable[type], "; Severity: ", ErrorTable[severity], "\n"
 						"\t\t", text(message), "\n");
 				stderr.flush();
-			} catch (Throwable e) {	}
+			} catch (Throwable e) {
+				try	stderr.writeln("GLDEBUGPROC has thrown exception: ", e); catch(Throwable) {}
+			}
 		};
 		glDebugMessageCallback(glError_cb, null);
 		glEnable(GL_DEBUG_OUTPUT);
