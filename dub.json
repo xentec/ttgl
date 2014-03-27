@@ -18,6 +18,7 @@
 	"preGenerateCommands-posix":["mkdir -p bin"],
 	"postGenerateCommands-posix":["cp -vnr res bin/"],
 
+	"buildRequirements": ["allowWarnings"],
 	"targetType": "executable",
 	"targetPath": "bin"
 }

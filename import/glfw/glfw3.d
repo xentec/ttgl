@@ -389,7 +389,7 @@ enum
 /*************************************************************************
  * GLFW API types
  *************************************************************************/
-extern (C)
+extern(System) nothrow
 {
 /*! @brief Client API function pointer type.
  *
@@ -406,7 +406,7 @@ extern (C)
  *
  *  @ingroup monitor
  */
-	struct GLFWmonitor {}
+	struct GLFWmonitor;
 
 /*! @brief Opaque window object.
  *
@@ -414,7 +414,7 @@ extern (C)
  *
  *  @ingroup window
  */
-	struct GLFWwindow {}
+	struct GLFWwindow;
 /*! @brief The function signature for error callbacks.
  *
  *  This is the function signature for error callback functions.
