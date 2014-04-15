@@ -11,7 +11,6 @@ import std.stdio;
 import std.string : chop, _0 = toStringz, format;
 
 import derelict.opengl3.gl3;
-
 import gl3n.linalg;
 
 import ttgl.global;
@@ -22,9 +21,15 @@ import ttgl.graphics.camera;
 import ttgl.graphics.util;
 import ttgl.graphics.primitives;
 
+debug {
+	import std.file : getcwd, dirEntries, SpanMode;
+}
+
+Window window;
+
 int main(string[] args) {
 	writeln(APPNAME, " ", VERSION.major, ".", VERSION.minor);
-	debug {
+	debug(5) {
 		writeln("==============================");
 		writeln("Arguements: ", args);
 		writeln("==============================");
@@ -40,7 +45,6 @@ int main(string[] args) {
 				writeln(env);
 		}
 		writeln("==============================");
-		import std.file : getcwd, dirEntries, SpanMode;
 		writeln(getcwd());
 		foreach (name; dirEntries(".", SpanMode.shallow))
 			writeln("\t", name);
@@ -62,7 +66,7 @@ int main(string[] args) {
 	//##########################
 	write("Creating main window... ");
 	// Just getting some living space here
-	Window window = new Window(800, 600, APPNAME ~ " - Oh my!");
+	window = new Window(800, 600, APPNAME ~ " - Oh my!");
 	try {
 		window.open();
 		writeln("DONE");
@@ -72,46 +76,7 @@ int main(string[] args) {
 	}
 
 	debug {
-		enum string[GLenum] ErrorTable = [
-			// Source
-			GL_DEBUG_SOURCE_API: "API",
-			GL_DEBUG_SOURCE_WINDOW_SYSTEM: "Window System",
-			GL_DEBUG_SOURCE_SHADER_COMPILER: "Shader Compiler",
-			GL_DEBUG_SOURCE_THIRD_PARTY: "Third Party",
-			GL_DEBUG_SOURCE_APPLICATION: "Application",
-			GL_DEBUG_SOURCE_OTHER: "Other",
-			// Type
-			GL_DEBUG_TYPE_ERROR: "Error",
-			GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: "Deprecated",
-			GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: "Undefined",
-			GL_DEBUG_TYPE_PORTABILITY: "Portability",
-			GL_DEBUG_TYPE_PERFORMANCE: "Performance",
-			GL_DEBUG_TYPE_OTHER: "Other",
-			GL_DEBUG_TYPE_MARKER: "Marker",
-			// Severity
-			GL_DEBUG_SEVERITY_HIGH: "High",
-			GL_DEBUG_SEVERITY_MEDIUM: "Medium",
-			GL_DEBUG_SEVERITY_LOW: "Low",
-			GL_DEBUG_SEVERITY_NOTIFICATION: "Notify",
-		];
-		// In case shit hits the fan
-		GLDEBUGPROC glError_cb = (GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
-			try {
-				stderr.write("[",getAppTime(),"] ","glError: \t");
-				stderr.write("ID: ", id, ", ");
-				stderr.write("Source: ", ErrorTable[source], ", ");
-				stderr.write("Type: ", ErrorTable[type], ", ");
-				stderr.write("Severity: ", ErrorTable[severity], ":\n");
-				stderr.write("\t\t", text(message), "\n");
-				stderr.flush();
-				stderr.writeln(defaultTraceHandler);
-			} catch (Throwable e) {
-				try 
-					stderr.writeln("GLDEBUGPROC has thrown exception: ", e);
-				catch(Throwable e2) {}
-			}
-		};
-		glDebugMessageCallback(glError_cb, null);
+		glDebugMessageCallback(&glError_cb, null);
 		glEnable(GL_DEBUG_OUTPUT);
 	}
 	//##################################
@@ -246,7 +211,8 @@ int main(string[] args) {
 	// Screen
 	//####################################################
 	// aka pretty much the same as above
-	Screen screen = new Screen(800,600);
+	Window.Size ws = window.getSize;
+	Screen screen = new Screen(ws.width,ws.height);
 
 	//##################################
 	//##################################
@@ -398,4 +364,59 @@ int main(string[] args) {
 	writeln("Exiting...");
 	// Don't forget the scopes! ^
 	return 0;
+}
+
+
+static this() {
+	debug {
+		GLErrors = [
+			// Source
+			GL_DEBUG_SOURCE_API: "API",
+			GL_DEBUG_SOURCE_WINDOW_SYSTEM: "Window System",
+			GL_DEBUG_SOURCE_SHADER_COMPILER: "Shader Compiler",
+			GL_DEBUG_SOURCE_THIRD_PARTY: "Third Party",
+			GL_DEBUG_SOURCE_APPLICATION: "Application",
+			GL_DEBUG_SOURCE_OTHER: "Other",
+			// Type
+			GL_DEBUG_TYPE_ERROR: "Error",
+			GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: "Deprecated",
+			GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: "Undefined",
+			GL_DEBUG_TYPE_PORTABILITY: "Portability",
+			GL_DEBUG_TYPE_PERFORMANCE: "Performance",
+			GL_DEBUG_TYPE_OTHER: "Other",
+			GL_DEBUG_TYPE_MARKER: "Marker",
+			// Severity
+			GL_DEBUG_SEVERITY_HIGH: "High",
+			GL_DEBUG_SEVERITY_MEDIUM: "Medium",
+			GL_DEBUG_SEVERITY_LOW: "Low",
+			GL_DEBUG_SEVERITY_NOTIFICATION: "Notify",
+		];
+	}
+}
+
+debug {
+	static immutable string[GLenum] GLErrors;
+
+	// In case shit hits the fan
+	extern(C) nothrow
+	void glError_cb(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
+		try {
+			stderr.writeln("[",getAppTime(),"] ","glError:");
+			stderr.write("\tID: ", id, ", ");
+			stderr.write("Source: ", GLErrors[source], ", ");
+			stderr.write("Type: ", GLErrors[type], ", ");
+			stderr.writeln("Severity: ", GLErrors[severity]);
+			stderr.writeln("\t", text(message));
+			stderr.flush();
+			stderr.writeln("Stack trace:");
+			stderr.writeln(defaultTraceHandler());
+			stderr.flush();
+			if(severity == GL_DEBUG_SEVERITY_HIGH)
+				window.close();
+		} catch (Throwable e) {
+			try 
+				stdout.writeln("GLDEBUGPROC has thrown exception: ", e);
+			catch(Throwable e2) {}
+		}
+	};
 }

@@ -94,8 +94,6 @@ GLuint createProgram(GLint vertexShader, GLint fragmentShader, GLint geometrySha
 }
 
 GLuint createProgram(in string vertexSource, in string fragmentSource, in string geometrySource = "") {
-	write("Creating shader program... ");
-	write("compiling shaders... ");
 
 	GLint vertex = createShader(GL_VERTEX_SHADER, vertexSource);
 	scope (exit) glDeleteShader(vertex);
@@ -109,7 +107,6 @@ GLuint createProgram(in string vertexSource, in string fragmentSource, in string
 	}
 	scope (exit) if(geometrySource.length) glDeleteShader(geometry);
 
-	writeln("DONE");
 	return createProgram(vertex,fragment,geometry);
 }
 void printBuffer(T)(GLenum buffer, size_t offset, int num, int stride = 0) {

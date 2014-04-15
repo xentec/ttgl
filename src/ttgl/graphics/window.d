@@ -5,6 +5,7 @@ import core.memory: GC;
 import std.array;
 import std.conv;
 import std.signals;
+import std.stdio;
 import std.string : chop, _0 = toStringz, format;
 import std.traits;
 
@@ -19,7 +20,6 @@ version(Posix) {
 
 import ttgl.global;
 
-debug import std.stdio;
 
 class Window
 {
@@ -174,6 +174,12 @@ class Window
 		glfwSwapInterval(iv);
 	}
 
+	Size getSize() {
+		Size size;
+		glfwGetWindowSize(window, &size.width, &size.height);
+		return size;
+	}
+
 	static void pollEvents() {
 		glfwPollEvents();
 	}
@@ -253,9 +259,13 @@ struct GLFWError {
 
 extern(C)
 void glfwError_cb(int code, const(char)* msg) nothrow {
+	import core.runtime;
 	try {
 		Window.error = GLFWError(code, text(msg));
 		stderr.writeln(Window.error);
+		stderr.writeln("Stack trace:");
+		stderr.writeln(defaultTraceHandler());
+		stderr.flush();
 	} catch(Throwable e) {}
 }
 
