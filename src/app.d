@@ -235,25 +235,24 @@ int main(string[] args) {
 		}
 		switch(action) {
 			case GLFW_PRESS:
-			case GLFW_REPEAT:
 				switch(key) {
 					case GLFW_KEY_W:
-						cam.moveForward();
+						cam.velocity.z--;
 						break;
 					case GLFW_KEY_S:
-						cam.moveBackward();
+						cam.velocity.z++;
 						break;
 					case GLFW_KEY_D:
-						cam.moveRight();
+						cam.velocity.x++;
 						break;
 					case GLFW_KEY_A:
-						cam.moveLeft();
+						cam.velocity.x--;
 						break;
 					case GLFW_KEY_SPACE:
-						cam.moveUp();
+						cam.velocity.y++;
 						break;
-					case GLFW_KEY_LEFT_SHIFT:
-						cam.moveDown();
+					case GLFW_KEY_C:
+						cam.velocity.y--;
 						break;
 
 					case GLFW_KEY_E:
@@ -276,6 +275,30 @@ int main(string[] args) {
 						cam.yaw(1.rad);
 						break;
 					default:
+				}
+				break;
+			case GLFW_RELEASE:
+				switch(key) {
+					case GLFW_KEY_W:
+						cam.velocity.z++;
+						break;
+					case GLFW_KEY_S:
+						cam.velocity.z--;
+						break;
+					case GLFW_KEY_D:
+						cam.velocity.x--;
+						break;
+					case GLFW_KEY_A:
+						cam.velocity.x++;
+						break;
+					case GLFW_KEY_SPACE:
+						cam.velocity.y--;
+						break;
+					case GLFW_KEY_C:
+						cam.velocity.y++;
+						break;
+					default:
+						break;
 				}
 				break;
 			default:
@@ -325,7 +348,7 @@ int main(string[] args) {
 			glUniformMatrix4fv(glGetUniformLocation(prog, "model"), 1, GL_TRUE, quat.axis_rotation(rad(time*25f), vec3(0.0f, 0.0f, 1.0f)).to_matrix!(4,4).value_ptr);
 
 			//cam.rotate(rad(time), vec3(0.0f, 0.0f, 1.0f));
-			glUniformMatrix4fv(glGetUniformLocation(prog, "view"), 1, GL_TRUE, cam.matrix().value_ptr);
+			glUniformMatrix4fv(glGetUniformLocation(prog, "view"), 1, GL_TRUE, cam.getView.value_ptr);
 
 			// Draw the cube array
 			glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, cast(void*) 0, FIELD^^2);
@@ -341,23 +364,26 @@ int main(string[] args) {
 		//##############
 		// Spit it out
 		window.present();
+
+		float dt = getAppTime() - time; // Delta time
+
 		// and wait for more to come
 		window.pollEvents();
 
-		float SPF = getAppTime() - time;
 		totalFrames++; // +1 Frame
-		totalTime += SPF;
+		totalTime += dt;
+
+		cam.moveUpdate(1);
 
 		if(Clock.currAppTick.seconds != tickSeconds) {
-			float avrTime = totalTime / totalFrames * 1000f;
-			window.title = std.string.format(TITLE_FORMAT, APPNAME, totalFrames, avrTime);
+			window.title = std.string.format(TITLE_FORMAT, APPNAME, totalFrames, totalTime / totalFrames * 1000f);
 
 			tickSeconds = Clock.currAppTick.seconds;
 			totalTime = 0;
 			totalFrames = 0;
 		}
-		if(slowDown && SPF < goodSPF) {
-			Thread.getThis.sleep(lrint((goodSPF-SPF)*1000f).msecs); // Zzz..
+		if(slowDown && dt < goodSPF) {
+			Thread.getThis.sleep(lrint((goodSPF-dt)*1000f).msecs); // Zzz..
 		}
 	}
 
