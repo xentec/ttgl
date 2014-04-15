@@ -5,10 +5,12 @@ import ttgl.util;
 
 class Camera
 {
-	this(vec3 position = vec3(0))	{
+	this(vec3 position, float width, float height, float fov = 90, float near = 1, float far = 512) {
 		pos.data = position;
 		rot.data = quat.identity;
 		right = cross(up, forward).normalized;
+
+		proj = mat4.perspective(width, height, fov, near, far);
 	}
 
 
@@ -19,6 +21,10 @@ class Camera
 		}
 
 		return view;
+	}
+
+	mat4 getProjection(bool update = false) {
+		return proj;
 	}
 
 	/*
@@ -110,6 +116,7 @@ class Camera
 	}
 
 	vec3 velocity = vec3(0);
+	mat4 proj;
 private:
 	Aware!vec3 pos;
 	Aware!quat rot;

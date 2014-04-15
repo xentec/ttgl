@@ -23,6 +23,11 @@ import ttgl.global;
 
 class Window
 {
+	enum CursorMode {
+		NORMAL = GLFW_CURSOR_NORMAL,
+		HIDDEN = GLFW_CURSOR_HIDDEN,
+		DISABLED = GLFW_CURSOR_DISABLED
+	}
 	struct Size {
 		int width, height;
 	}
@@ -66,6 +71,7 @@ class Window
 		bool forwarded = false;
 		bool debuging = false;
 
+		CursorMode cursorMode = CursorMode.DISABLED;
 	}
 
 	this(int width, int height, in string title, in Config cfg = Config()) {
@@ -91,30 +97,40 @@ class Window
 		if(--windows == 0) glfwTerminate();
 	}
 
-	@property
-	void title(in string title) {
-		if(!window) return;
-		title_ = title;
-		glfwSetWindowTitle(window, title._0);
-	}
-	@property
-	string title() {
-		return title_;
+	@property {
+		void title(in string title) {
+			if(!window) return;
+			title_ = title;
+			glfwSetWindowTitle(window, title._0);
+		}
+		string title() {
+			return title_;
+		}
 	}
 
-	@property
-	bool visible() {
-		return window && glfwGetWindowAttrib(window, GLFW_VISIBLE);
+	@property {
+		bool visible() {
+			return window && glfwGetWindowAttrib(window, GLFW_VISIBLE);
+		}
+		void visible(bool flag) {
+			cfg.visible = flag;
+			if(!window) return;
+			if(flag)
+				glfwShowWindow(window);
+			else
+				glfwHideWindow(window);
+		}
 	}
-	@property
-	void visible(bool flag) {
-		cfg.visible = flag;
-		if(!window) return;
-		if(flag)
-			glfwShowWindow(window);
-		else
-			glfwHideWindow(window);
+
+	@property {
+		CursorMode cursorMode() {
+			return cast(CursorMode) glfwGetInputMode(window, GLFW_CURSOR);
+		}
+		void cursorMode(CursorMode mode) {
+			glfwSetInputMode(window, GLFW_CURSOR, mode);
+		}
 	}
+
 
 	void open(bool fullscreen = false) {
 		setHints(cfg);
@@ -129,9 +145,11 @@ class Window
 
 		glfwSetWindowUserPointer(window, cast(void*)this);
 
-		glfwSetKeyCallback(window, &keyCB);
 		glfwSetWindowSizeCallback(window, &winSizeCB);
+		glfwSetKeyCallback(window, &keyCB);
+		glfwSetMouseButtonCallback(window, &mouseBtnCB);
 		glfwSetCursorPosCallback(window, &cursorPosCB);
+
 		// Set X class hint
 		{
 			version(Posix) {
@@ -146,7 +164,7 @@ class Window
 		bindContext();
 
 		// Catch cursor
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		cursorMode = cfg.cursorMode;
 	}
 
 	bool isOpen() {
@@ -294,30 +312,37 @@ void setHints(in Window.Config cfg) {
 
 Window get(GLFWwindow* w) { return cast(Window) glfwGetWindowUserPointer(w); }
 
-extern(C) {
-	void keyCB(GLFWwindow* gw, int key, int scancode, int action, int mode) nothrow {
+extern(C) nothrow {
+	void keyCB(GLFWwindow* gw, int key, int scancode, int action, int mod) {
 		try {
 			Window w = get(gw);
 			if(w !is null && w.onKey !is null) 
-				w.onKey(key, scancode, action, mode);
+				w.onKey(key, scancode, action, mod);
 		} catch (Throwable e) {}
 	};
 
-	void winSizeCB(GLFWwindow* gw, int width, int height) nothrow {
+	void winSizeCB(GLFWwindow* gw, int width, int height) {
 		try {
 			Window w = get(gw);
 			if(w !is null && w.onWindowResize !is null) {
 //				w.width = width;
-//				w.height = height;
+//	TODO		w.height = height;
 				w.onWindowResize(width, height);
 			}
 		} catch (Throwable e) {}
 	}
 
-	void cursorPosCB(GLFWwindow* gw, double x, double y) nothrow {
+	void cursorPosCB(GLFWwindow* gw, double x, double y) {
 		try {
 			Window w = get(gw);
 			if(w !is null && w.onCursorMove !is null) w.onCursorMove(x, y);
+		} catch (Throwable e) {}
+	}
+
+	void mouseBtnCB(GLFWwindow* gw, int button, int action, int mod) {
+		try {
+			Window w = get(gw);
+			if(w !is null && w.onMouseButton !is null) w.onMouseButton(button, action, mod);
 		} catch (Throwable e) {}
 	}
 }

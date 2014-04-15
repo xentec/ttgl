@@ -26,6 +26,7 @@ debug {
 }
 
 Window window;
+Window.Size ws = { 800, 600 };
 
 int main(string[] args) {
 	writeln(APPNAME, " ", VERSION.major, ".", VERSION.minor);
@@ -66,7 +67,7 @@ int main(string[] args) {
 	//##########################
 	write("Creating main window... ");
 	// Just getting some living space here
-	window = new Window(800, 600, APPNAME ~ " - Oh my!");
+	window = new Window(ws.width, ws.height, APPNAME ~ " - Oh my!");
 	try {
 		window.open();
 		writeln("DONE");
@@ -127,10 +128,7 @@ int main(string[] args) {
 	//##########################
 	// Enter the Matrix!
 	mat4 model = mat4.identity;
-	mat4 view = mat4.look_at(vec3(-10f, -10f, 5.0f), vec3(-10f, -10f, 5.0f) + vec3(1, 1, 0), vec3(0.0f, 0.0f, 1.0f));
-	mat4 proj = mat4.perspective(800f, 600f, 90.0f, 1.0f, 512.0f);
-
-	Camera cam = new Camera(vec3(10f, 10f, 10.0f));
+	Camera cam = new Camera(vec3(10f, 10f, 10.0f), ws.width, ws.height);
 
 	// Program
 	//##########################
@@ -162,10 +160,10 @@ int main(string[] args) {
 		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
 
 		GLint uniView = glGetUniformLocation(prog, "view");
-		glUniformMatrix4fv(uniView, 1, GL_TRUE, view.value_ptr);
+		glUniformMatrix4fv(uniView, 1, GL_TRUE, cam.getView.value_ptr);
 
 		GLint uniProj = glGetUniformLocation(prog, "proj");
-		glUniformMatrix4fv(uniProj, 1, GL_TRUE, proj.value_ptr);
+		glUniformMatrix4fv(uniProj, 1, GL_TRUE, cam.getProjection.value_ptr);
 
 
 		// Misc
@@ -211,7 +209,7 @@ int main(string[] args) {
 	// Screen
 	//####################################################
 	// aka pretty much the same as above
-	Window.Size ws = window.getSize;
+
 	Screen screen = new Screen(ws.width,ws.height);
 
 	//##################################
@@ -221,13 +219,11 @@ int main(string[] args) {
 	window.onWindowResize = (int width, int height) {
 		glViewport(0, 0, width, height);
 		screen.resize(width,height);
-		proj = mat4.perspective(width, height, 70.0f, 1.0f, 512.0f);
+		cam.proj = mat4.perspective(width, height, 90.0f, 1.0f, 512.0f);
 	};
 
-	window.onKey = (int key, int scancode, int action, int mods) {
+	window.onKey = (int key, int scancode, int action, int mod) {
 		import glfw.glfw3;
-		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) // Make it close itself on ESC
-			window.close();
 		if(key == GLFW_KEY_TAB && action == GLFW_PRESS) {
 			static int e = 0;
 			if(++e > 5) e = 0;
@@ -262,17 +258,13 @@ int main(string[] args) {
 						cam.roll(-1.rad);
 						break;
 
-					case GLFW_KEY_UP:
-						cam.pitch(1.rad);
-						break;
-					case GLFW_KEY_DOWN:
-						cam.pitch(-1.rad);
-						break;
-					case GLFW_KEY_RIGHT:
-						cam.yaw(-1.rad);
-						break;
-					case GLFW_KEY_LEFT:
-						cam.yaw(1.rad);
+					case GLFW_KEY_ESCAPE:
+						if(window.onCursorMove is null)
+							window.close();
+						else {
+							window.onCursorMove = null;
+							window.cursorMode = Window.CursorMode.NORMAL;
+						}
 						break;
 					default:
 				}
@@ -306,6 +298,14 @@ int main(string[] args) {
 		}
 	};
 
+	window.onMouseButton = (int key, int action, int mod) {
+		import glfw.glfw3;
+		if(action == GLFW_PRESS && window.onCursorMove is null) {
+			window.onCursorMove = &cam.mouse;
+			window.cursorMode = Window.CursorMode.DISABLED;
+		}
+	};
+
 	window.onCursorMove = &cam.mouse;
 
 	// Initialising frame counter
@@ -315,7 +315,7 @@ int main(string[] args) {
 	uint totalFrames = 0;
 	ulong tickSeconds = Clock.currAppTick.seconds;
 
-	glViewport(0, 0, 800, 600);
+	glViewport(0, 0, ws.width, ws.height);
 	window.presentInterval = 0;
 
 	writeln("Entering main loop...");
