@@ -204,6 +204,10 @@ int main(string[] args) {
 		foreach(ref t;tex)
 			glDeleteTextures(1, &t);
 	//*/
+	// Debug
+	GLuint query;
+	glGenQueries(1, &query);
+	
 
 	//####################################################
 	// Screen
@@ -345,6 +349,8 @@ int main(string[] args) {
 		glEnable(GL_CULL_FACE);
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+		glBeginQuery(GL_SAMPLES_PASSED, query);
+
 		foreach(prog; program) {
 			glUseProgram(prog);
 			// Rotate it
@@ -356,6 +362,8 @@ int main(string[] args) {
 			// Draw the cube array
 			glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, cast(void*) 0, FIELD^^2);
 		}
+
+		glEndQuery(GL_SAMPLES_PASSED);
 
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glDisable(GL_CULL_FACE);
@@ -378,8 +386,11 @@ int main(string[] args) {
 
 		cam.moveUpdate(1);
 
+		GLuint samples;
+		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &samples);
+
 		if(Clock.currAppTick.seconds != tickSeconds) {
-			window.title = std.string.format(TITLE_FORMAT, APPNAME, totalFrames, totalTime / totalFrames * 1000f);
+			window.title = std.string.format(TITLE_FORMAT, APPNAME, totalFrames, totalTime / totalFrames * 1000f, samples);
 
 			tickSeconds = Clock.currAppTick.seconds;
 			totalTime = 0;
