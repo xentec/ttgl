@@ -10,7 +10,7 @@ class Camera
 		rot.data = quat.identity;
 		right = cross(up, forward).normalized;
 
-		proj = mat4.perspective(width, height, fov, near, far);
+		persp.data = Perspective(width, height, fov, near, far);
 	}
 
 
@@ -24,14 +24,61 @@ class Camera
 	}
 
 	mat4 getProjection(bool update = false) {
+		if(persp.changed || update) {
+			proj = mat4.perspective(persp.width, persp.height, persp.fov, persp.near, persp.far);
+			persp.changed = false;
+		}
 		return proj;
 	}
 
 	/*
 	 * Set the absolute position
 	 */
-	void setPosition(vec3 new_pos) {
-		pos = new_pos;
+	@property {
+		vec3 position() {
+			return pos;
+		}
+		void position(vec3 new_pos) {
+			pos.data = new_pos;
+		}
+	}
+
+	@property {
+		float fov() {
+			return persp.fov;
+		}
+		void fov(float new_fov) {
+			persp.fov = new_fov;
+			persp.changed = true;
+		}
+	}
+
+	@property {
+		float nearPlane() {
+			return persp.near;
+		}
+		void nearPlane(float new_near) {
+			persp.near = new_near;
+			persp.changed = true;
+		}
+	}
+
+	@property {
+		float farPlane() {
+			return persp.far;
+		}
+		void farPlane(float new_far) {
+			persp.far = new_far;
+			persp.changed = true;
+		}
+	}
+
+	void resize(float new_width, float new_height) {
+		if(persp.width == new_width && persp.height == new_height)
+			return;
+		persp.width = new_width;
+		persp.height = new_height;
+		persp.changed = true;
 	}
 
 //	void setDirection(vec3 new_dir) {
@@ -101,7 +148,7 @@ class Camera
 	}
 
 	void roll(float a) {
-		rot = quat.axis_rotation(a, right) * rot;
+		rot = rot * quat.axis_rotation(a, right);
 	}
 
 	void mouse(double x, double y) {
@@ -116,7 +163,7 @@ class Camera
 	}
 
 	vec3 velocity = vec3(0);
-	mat4 proj;
+
 private:
 	Aware!vec3 pos;
 	Aware!quat rot;
@@ -125,9 +172,20 @@ private:
 		forward = vec3(1, 0, 0),
 		up = vec3(0, 1, 0),
 		right;
-	
+
 	vec2 mousePos = vec2(0,0);
 
-	mat4 view;
+	Aware!Perspective persp;
+
+	// cache
+	mat4 view, proj;
+}
+
+private:
+
+struct Perspective {
+	float width, height;
+	float fov;
+	float near, far;
 }
 

@@ -128,7 +128,7 @@ int main(string[] args) {
 	//##########################
 	// Enter the Matrix!
 	mat4 model = mat4.identity;
-	Camera cam = new Camera(vec3(10f, 10f, 10.0f), ws.width, ws.height);
+	Camera cam = new Camera(vec3(10, 10, 10), ws.width, ws.height);
 
 	// Program
 	//##########################
@@ -219,7 +219,7 @@ int main(string[] args) {
 	window.onWindowResize = (int width, int height) {
 		glViewport(0, 0, width, height);
 		screen.resize(width,height);
-		cam.proj = mat4.perspective(width, height, 90.0f, 1.0f, 512.0f);
+		cam.resize(width, height);
 	};
 
 	window.onKey = (int key, int scancode, int action, int mod) {
@@ -250,14 +250,6 @@ int main(string[] args) {
 					case GLFW_KEY_C:
 						cam.velocity.y--;
 						break;
-
-					case GLFW_KEY_E:
-						cam.roll(1.rad);
-						break;
-					case GLFW_KEY_Q:
-						cam.roll(-1.rad);
-						break;
-
 					case GLFW_KEY_ESCAPE:
 						if(window.onCursorMove is null)
 							window.close();
@@ -265,6 +257,17 @@ int main(string[] args) {
 							window.onCursorMove = null;
 							window.cursorMode = Window.CursorMode.NORMAL;
 						}
+						break;
+					default:
+				}
+				goto case;
+			case GLFW_REPEAT:
+				switch(key) {
+					case GLFW_KEY_E:
+						cam.roll(1.rad);
+						break;
+					case GLFW_KEY_Q:
+						cam.roll(-1.rad);
 						break;
 					default:
 				}
