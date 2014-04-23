@@ -16,7 +16,7 @@ import gl3n.linalg;
 import ttgl.global;
 import ttgl.util;
 import ttgl.graphics.window;
-import ttgl.graphics.screen;
+import ttgl.graphics.renderer;
 import ttgl.graphics.camera;
 import ttgl.graphics.util;
 import ttgl.graphics.primitives;
@@ -58,8 +58,8 @@ int main(string[] args) {
 
 	writeln("Initializing... ");
 
-	if(DerelictGL3.loadedVersion < GLVersion.GL32) {
-		writeln("OpenGL 3.2 or better is required");
+	if(DerelictGL3.loadedVersion < GLVersion.GL40) {
+		writeln("OpenGL 4.0 or better is required");
 		return 1;
 	}
 
@@ -86,96 +86,10 @@ int main(string[] args) {
 	//####################################################
 	// Scene
 	//####################################################
-	// Create our Vertex Array Object
-	GLuint sceneVAO;
-	glGenVertexArrays(1, &sceneVAO);
-	scope(exit) glDeleteVertexArrays(1, &sceneVAO);
-	glBindVertexArray(sceneVAO);
 
 	// Data
 	//##########################
-	Cube cube;
-
-	// Buffers
-	//##########################
-	writeln("Filling buffers...");
-	// Create vertex buffes to hold our vertices
-	GLuint sceneVBO;
-	glGenBuffers(1, &sceneVBO);
-	scope(exit) glDeleteBuffers(1, &sceneVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, sceneVBO);
-	// Upload the vertices
-	glBufferData(GL_ARRAY_BUFFER, cube.vertices.sizeof + cube.colors.sizeof, cube.vertices.ptr, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, cube.vertices.sizeof, cube.colors.sizeof, cube.colors.ptr);
-
-	/*/ Verify
-	debug printBuffer!(float)("sceneVBO", GL_ARRAY_BUFFER, 0, cube.vertices.length, 3);
-	debug printBuffer!(ubyte)("sceneVBOc", GL_ARRAY_BUFFER, cube.vertices.sizeof, cube.colors.length, 4);
-	//*/
-
-	GLuint sceneIBO;
-	glGenBuffers(1, &sceneIBO);
-	scope(exit) glDeleteBuffers(1, &sceneIBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sceneIBO);
-	// Upload the indices
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, cube.indices.sizeof, cube.indices.ptr, GL_STATIC_DRAW);
-
-	/*/ Verify
-	debug printBuffer!(byte)("sceneIBO", GL_ELEMENT_ARRAY_BUFFER, 0, 36, 6);
-	//*/
-
-	// Transformations
-	//##########################
-	// Enter the Matrix!
-	mat4 model = mat4.identity;
-	Camera cam = new Camera(vec3(10, 10, 10), ws.width, ws.height);
-
-	// Program
-	//##########################
-	GLint[string] program;
-	program["scene"] = createProgram(import("scene.v.glsl"), import("scene.f.glsl"));
-	//program["normals"] = createProgram(import("normals.v.glsl"), import("normals.f.glsl"), import("normals.g.glsl"));
-
-	scope(exit)
-		foreach(prog; program)
-			glDeleteProgram(prog);
-
-	foreach(name, prog; program) {
-
-		glUseProgram(prog);
-		// Vertices
-		//##########################
-		{
-			// Tell our vertex shader how to use the vertices from our VBO
-			GLint position = glGetAttribLocation(prog, "base");
-			glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 0, null);
-			glEnableVertexAttribArray(position);
-
-			GLint color = glGetAttribLocation(prog, "color");
-			glVertexAttribPointer(color, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, cast(void*) cube.vertices.sizeof);
-			glEnableVertexAttribArray(color);
-		}
-
-		GLint uniModel = glGetUniformLocation(prog, "model");
-		glUniformMatrix4fv(uniModel, 1, GL_TRUE, model.value_ptr);
-
-		GLint uniView = glGetUniformLocation(prog, "view");
-		glUniformMatrix4fv(uniView, 1, GL_TRUE, cam.getView.value_ptr);
-
-		GLint uniProj = glGetUniformLocation(prog, "proj");
-		glUniformMatrix4fv(uniProj, 1, GL_TRUE, cam.getProjection.value_ptr);
-
-
-		// Misc
-		//##########################
-		//GLint uniColor = glGetUniformLocation(sceneProgram, "overrideColor");
-		GLint uniRowLength = glGetUniformLocation(prog, "rowLength");
-		glUniform1i(uniRowLength, FIELD);
-		GLint uniSeed = glGetUniformLocation(prog, "seed");
-		glUniform1i(uniSeed, 1);
-		//	GLint uniSeed = glGetUniformLocation(sceneProgram, "seed");
-		//	glUniform(uniSeed, unpredictableSeed);
-	}
+	RandomCubes rc = new RandomCubes(FIELD, 1024, vec3(0));
 
 	/*/ Textures
 		//##########################
@@ -214,25 +128,20 @@ int main(string[] args) {
 	//####################################################
 	// aka pretty much the same as above
 
-	Screen screen = new Screen(ws.width,ws.height);
+	Framebuffer screen = new Framebuffer(ws.width, ws.height);
+	Camera cam = screen.camera;
 
 	//##################################
 	//##################################
 	// Input handler
 
 	window.onWindowResize = (int width, int height) {
-		glViewport(0, 0, width, height);
 		screen.resize(width,height);
-		cam.resize(width, height);
 	};
 
 	window.onKey = (int key, int scancode, int action, int mod) {
 		import glfw.glfw3;
-		if(key == GLFW_KEY_TAB && action == GLFW_PRESS) {
-			static int e = 0;
-			if(++e > 5) e = 0;
-			glUniform1i(glGetUniformLocation(screen.program, "effectFlag"), e);
-		}
+
 		switch(action) {
 			case GLFW_PRESS:
 				switch(key) {
@@ -261,6 +170,11 @@ int main(string[] args) {
 							window.onCursorMove = null;
 							window.cursorMode = Window.CursorMode.NORMAL;
 						}
+						break;
+					case GLFW_KEY_TAB:
+						static int e;
+						if(++e > 5) e = 0;
+						glUniform1i(glGetUniformLocation(screen.program, "effectFlag"), e);
 						break;
 					default:
 				}
@@ -297,11 +211,9 @@ int main(string[] args) {
 						cam.velocity.y++;
 						break;
 					default:
-						break;
 				}
 				break;
 			default:
-				break;
 		}
 	};
 
@@ -314,19 +226,16 @@ int main(string[] args) {
 	};
 
 	window.onCursorMove = &cam.mouse;
+	window.presentInterval = 0;
 
 	// Initialising frame counter
 	static bool slowDown = true;
-	static float goodSPF = 1f / 120f; // 60 frames in 1 second (1k ms)
+	static const float goodSPF = 1f / 120f; // 60 frames in 1 second (1k ms)
 	float totalTime = 0;
 	uint totalFrames = 0;
 	ulong tickSeconds = Clock.currAppTick.seconds;
 
-	glViewport(0, 0, ws.width, ws.height);
-	window.presentInterval = 0;
-
 	writeln("Entering main loop...");
-
 	while(window.isOpen) {
 		float time = getAppTime();
 		//##############
@@ -336,8 +245,6 @@ int main(string[] args) {
 
 		// Scene
 		//##########################
-		glBindVertexArray(sceneVAO);
-
 		/*/
 		foreach(uint i, ref t; tex) {
 			glActiveTexture(GL_TEXTURE0 +i);
@@ -351,17 +258,8 @@ int main(string[] args) {
 
 		glBeginQuery(GL_SAMPLES_PASSED, query);
 
-		foreach(prog; program) {
-			glUseProgram(prog);
-			// Rotate it
-			glUniformMatrix4fv(glGetUniformLocation(prog, "model"), 1, GL_TRUE, quat.axis_rotation(rad(time*25f), vec3(0.0f, 0.0f, 1.0f)).to_matrix!(4,4).value_ptr);
-
-			//cam.rotate(rad(time), vec3(0.0f, 0.0f, 1.0f));
-			glUniformMatrix4fv(glGetUniformLocation(prog, "view"), 1, GL_TRUE, cam.getView.value_ptr);
-
-			// Draw the cube array
-			glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_BYTE, cast(void*) 0, FIELD^^2);
-		}
+		rc.model = quat.axis_rotation(180*sin(rad(time)), vec3(0.0f, 0.0f, 1.0f)).to_matrix!(4,4);
+		screen.render(rc);
 
 		glEndQuery(GL_SAMPLES_PASSED);
 
@@ -384,7 +282,7 @@ int main(string[] args) {
 		totalFrames++; // +1 Frame
 		totalTime += dt;
 
-		cam.moveUpdate(1);
+		cam.moveUpdate(500*dt);
 
 		GLuint samples;
 		glGetQueryObjectuiv(query, GL_QUERY_RESULT, &samples);
@@ -397,7 +295,7 @@ int main(string[] args) {
 			totalFrames = 0;
 		}
 		if(slowDown && dt < goodSPF) {
-			Thread.getThis.sleep(lrint((goodSPF-dt)*1000f).msecs); // Zzz..
+			Thread.getThis.sleep(lrint((goodSPF-dt)*1000.0).msecs); // Zzz..
 		}
 	}
 
@@ -407,49 +305,21 @@ int main(string[] args) {
 }
 
 
-static this() {
-	debug {
-		GLErrors = [
-			// Source
-			GL_DEBUG_SOURCE_API: "API",
-			GL_DEBUG_SOURCE_WINDOW_SYSTEM: "Window System",
-			GL_DEBUG_SOURCE_SHADER_COMPILER: "Shader Compiler",
-			GL_DEBUG_SOURCE_THIRD_PARTY: "Third Party",
-			GL_DEBUG_SOURCE_APPLICATION: "Application",
-			GL_DEBUG_SOURCE_OTHER: "Other",
-			// Type
-			GL_DEBUG_TYPE_ERROR: "Error",
-			GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: "Deprecated",
-			GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR: "Undefined",
-			GL_DEBUG_TYPE_PORTABILITY: "Portability",
-			GL_DEBUG_TYPE_PERFORMANCE: "Performance",
-			GL_DEBUG_TYPE_OTHER: "Other",
-			GL_DEBUG_TYPE_MARKER: "Marker",
-			// Severity
-			GL_DEBUG_SEVERITY_HIGH: "High",
-			GL_DEBUG_SEVERITY_MEDIUM: "Medium",
-			GL_DEBUG_SEVERITY_LOW: "Low",
-			GL_DEBUG_SEVERITY_NOTIFICATION: "Notify",
-		];
-	}
-}
-
 debug {
-	static immutable string[GLenum] GLErrors;
-
+	import ttgl.graphics.error;
 	// In case shit hits the fan
 	extern(C) nothrow
 	void glError_cb(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const(GLchar)* message, GLvoid* userParam) {
 		try {
 			stderr.writeln("[",getAppTime(),"] ","glError:");
 			stderr.write("\tID: ", id, ", ");
-			stderr.write("Source: ", GLErrors[source], ", ");
-			stderr.write("Type: ", GLErrors[type], ", ");
-			stderr.writeln("Severity: ", GLErrors[severity]);
+			stderr.write("Source: ", GL.Debug[source], ", ");
+			stderr.write("Type: ", GL.Debug[type], ", ");
+			stderr.writeln("Severity: ", GL.Debug[severity]);
 			stderr.writeln("\t", text(message));
 			stderr.flush();
 			stderr.writeln("Stack trace:");
-			stderr.writeln(defaultTraceHandler());
+			stderr.writeln(saneStackTrace());
 			stderr.flush();
 			if(severity == GL_DEBUG_SEVERITY_HIGH)
 				window.close();

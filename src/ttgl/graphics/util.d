@@ -7,9 +7,59 @@ import std.stdio;
 import std.string: _0 = toStringz, chop;
 
 import derelict.opengl3.gl3;
+import gl3n.linalg;
 import SOIL.SOIL;
 
 import ttgl.global;
+import ttgl.graphics.error;
+
+alias Vector!(ubyte,4) vec4u;
+
+
+struct DrawElementsIndrectCMD {
+	GLuint
+		count,
+		instanceCount,
+		firstIndex,
+		baseVertex,
+		baseInstance;
+}
+
+
+enum GLObject {
+	Buffer,
+	Texture,
+	VertexArray,
+	Query,
+	Framebuffer,
+	Renderbuffer,
+}
+
+void createObjects(GLObject T)(GLuint* objPtrs[]) {
+	GLuint obj[];
+	obj.length = objPtrs.length;
+
+	static if(T == GLObject.Query)
+		mixin("glGenQueries(cast(int) obj.length, obj.ptr);");
+	else
+		mixin("glGen" ~ text(T) ~ "s(cast(int) obj.length, obj.ptr);");
+
+	foreach(uint i, ref op; objPtrs) {
+		*op = obj[i];
+	}
+}
+
+alias createObjects!(GLObject.Buffer) createBuffers;
+
+void destroyObjects(GLObject T)(GLuint obj[]) {
+	static if(T == GLObject.Query)
+		mixin("glDeleteQueries(cast(int) obj.length, obj.ptr);");
+	else
+		mixin("glDelete" ~ text(T) ~ "s(cast(int) obj.length, obj.ptr);");
+}
+
+alias destroyObjects!(GLObject.Buffer) destroyBuffers;
+
 
 GLuint createTexture(string file) {
 	// Generate
@@ -72,7 +122,7 @@ GLuint createShader(GLenum type, in string source) {
 		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
 		buffer.length = length;
 		glGetShaderInfoLog(shader, length, null, buffer.ptr);
-		throw new Exception(chop(buffer).idup ~ source[0..32]);
+		throw new Exception(GL.Shader[type] ~ " shader failed!\n" ~ chop(buffer).idup);
 	}
 
 	return shader;
@@ -110,7 +160,7 @@ GLuint createProgram(in string vertexSource, in string fragmentSource, in string
 	return createProgram(vertex,fragment,geometry);
 }
 void printBuffer(T)(GLenum buffer, size_t offset, int num, int stride = 0) {
-	printBuffer!T("", buffer, offset, num, stride);
+	printBuffer!T(GL.Buffer.get(buffer,""), buffer, offset, num, stride);
 }
 void printBuffer(T)(in string name, GLenum buffer, size_t offset, int num, int stride = 0) {
 	size_t size = T.sizeof*num;
@@ -121,9 +171,9 @@ void printBuffer(T)(in string name, GLenum buffer, size_t offset, int num, int s
 	writeln(name, " (",typeid(T),"):");
 	for(uint i; i < num;) {
 		write('[');
-		for(uint j = stride+i; i < j; i++) {
+		for(uint j = i; j < stride || stride == 0 && i < num; i++) {
 			write(ptr[i]);
-			if(i+1 < j) write(", ");
+			if(j+1 > stride) write(", ");
 		}
 		writeln("]");
 	}

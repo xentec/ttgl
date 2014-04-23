@@ -1,7 +1,10 @@
 module ttgl.graphics.camera;
 
 import gl3n.linalg;
+import gl3n.math;
 import ttgl.util;
+
+debug import std.stdio;
 
 class Camera
 {
@@ -140,6 +143,7 @@ class Camera
 	void pitch(float a) {
 		rot = rot * quat.axis_rotation(a, forward);
 	}
+	//TODO: Correct yaw rotation in upside-down situtation
 	/*
 	 * Left and right direction angle
 	 */

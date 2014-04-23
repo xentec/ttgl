@@ -1,12 +1,19 @@
-module ttgl.graphics.screen;
+module ttgl.graphics.renderer;
 
 import derelict.opengl3.gl3;
+import gl3n.linalg;
 
+import ttgl.graphics.base;
 import ttgl.graphics.util;
+import ttgl.graphics.camera;
 
-class Screen
+
+class Framebuffer : Renderer, Drawable
 {
 	this(uint width, uint height, bool bind = false) {
+
+		cam = new Camera(vec3(0),width,height);
+
 		glGenVertexArrays(1, &vao);
 		scope(failure) glDeleteVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -16,7 +23,10 @@ class Screen
 		scope(failure) glDeleteBuffers(1, &vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		// Upload the vertices
-		glBufferData(GL_ARRAY_BUFFER, vertices.sizeof, vertices.ptr, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, vertices.sizeof + tex.sizeof, null, GL_STATIC_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.sizeof, vertices.ptr);
+		glBufferSubData(GL_ARRAY_BUFFER, vertices.sizeof, tex.sizeof, tex.ptr);
+
 
 		// Program
 		prog = createProgram(import("screen.v.glsl"), import("screen.f.glsl"));
@@ -26,39 +36,32 @@ class Screen
 
 		{
 			int posAttrib = glGetAttribLocation(prog, "pos");
-			glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * GLfloat.sizeof, null);
+			glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, null);
 			glEnableVertexAttribArray(posAttrib);
 
 			int texAttrib = glGetAttribLocation(prog, "tex");
-			glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 4 * GLfloat.sizeof, cast(void*) (2 * GLfloat.sizeof));
+			glVertexAttribPointer(texAttrib, 2, GL_FLOAT, GL_FALSE, 0, cast(void*) vertices.sizeof);
 			glEnableVertexAttribArray(texAttrib);
 		}
 
-		// Screen texture
+		// Texture
 		glGenTextures(1, &cb);
 		scope(failure) glDeleteTextures(1, &cb);
-		glBindTexture(GL_TEXTURE_2D, cb);
+
+		// Depth and stencil buffer
+		glGenRenderbuffers(1, &rbo);
+		scope(failure) glDeleteRenderbuffers(1, &rbo);
+
+		glGenFramebuffers(1, &fb);
+		scope(failure) glDeleteFramebuffers(1, &fb);
+
+		resize(width, height); // Initialize texture and renderbuffer
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-		glTexImage2D(GL_TEXTURE_2D, 
-		             0, GL_RGB, 
-		             width, height, 
-		             0, GL_RGB, 
-		             GL_UNSIGNED_BYTE, null);
-
-		// Depth and stencil buffer
-		glGenRenderbuffers(1, &rbo);
-		scope(failure) glDeleteRenderbuffers(1, &rbo);
-
-		glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-
-		glGenFramebuffers(1, &fb);
-		scope(failure) glDeleteFramebuffers(1, &fb);
 		this.bind();
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, 
@@ -103,6 +106,9 @@ class Screen
 	}
 
 	void resize(int width, int height) {
+		cam.resize(width, height);
+		glViewport(0, 0, width, height);
+
 		glBindTexture(GL_TEXTURE_2D, cb);
 		glTexImage2D(GL_TEXTURE_2D, 
 		             0, GL_RGB, 
@@ -114,9 +120,22 @@ class Screen
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 	}
 
+	void render(Drawable obj) {
+		bind();
+		glUseProgram(obj.program);
+		glUniformMatrix4fv(glGetUniformLocation(obj.program, "view"), 1, GL_TRUE, cam.getView.value_ptr);
+		glUniformMatrix4fv(glGetUniformLocation(obj.program, "proj"), 1, GL_TRUE, cam.getProjection.value_ptr);
+		obj.draw();
+	}
+
 	@property
 	GLint program() const {
 		return prog;
+	}
+
+	@property
+	ref Camera camera() {
+		return cam;
 	}
 
 private:
@@ -124,6 +143,9 @@ private:
 	uint cb, rbo;
 
 	bool bound;
+
+	Camera cam;
+
 /*
 	-1,-1 ---------- 1,-1
 	  |  \            |
@@ -131,13 +153,13 @@ private:
 	  |            \  |
 	-1,1 ----------- 1,1
 */
-	static immutable GLfloat vertices[3*2*4] = [
-		-1.0f, -1.0f,  0.0f, 0.0f,
-		-1.0f,  1.0f,  0.0f, 1.0f,
-		1.0f,  1.0f,  1.0f, 1.0f,
+	static const GLfloat vertices[(2*3)*2] = [
+		-1, -1,  -1,  1,   1,  1, // Left
+		 1,  1,   1, -1,  -1, -1, // Right
+	];
 
-		1.0f,  1.0f,  1.0f, 1.0f,
-		1.0f, -1.0f,  1.0f, 0.0f,
-		-1.0f, -1.0f,  0.0f, 0.0f,
+	static const GLfloat tex[(2*3)*2] = [
+		0, 0,  0, 1,  1, 1,
+		1, 1,  1, 0,  0, 0,
 	];
 }

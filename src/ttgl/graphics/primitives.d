@@ -1,6 +1,19 @@
 module ttgl.graphics.primitives;
 
-import gl3n.linalg;
+import 
+	std.array,
+	std.random;
+
+import 
+	gl3n.linalg,
+	gl3n.math;
+import derelict.opengl3.gl3;
+
+import ttgl.graphics.base;
+import ttgl.graphics.util;
+import ttgl.util;
+
+debug import std.stdio;
 
 struct Face {
 	union {
@@ -23,22 +36,7 @@ struct Face {
 	enum ubyte[6] indices = [0, 2, 3,  3, 1, 0];
 }
 
-struct Cube {
-	/*
-	enum Face[6] faces = [
-		Face(vec3(0,0,0),vec3(1,0,0),vec3(0,1,0),vec3(1,1,0)),	// BOTTOM
-		Face(vec3(0,0,1),vec3(1,0,1),vec3(0,1,1),vec3(1,1,1)),	// TOP
-		Face(vec3(0,0,1),vec3(0,0,0),vec3(1,0,1),vec3(1,0,0)),	// BACK-LEFT
-		Face(vec3(1,0,1),vec3(1,0,0),vec3(1,1,1),vec3(1,1,0)),	// FRONT-LEFT
-		Face(vec3(1,1,1),vec3(1,1,0),vec3(0,1,1),vec3(0,1,0)),	// FRONT-RIGHT
-		Face(vec3(0,1,1),vec3(0,1,0),vec3(0,0,1),vec3(0,0,0))	// BACK-RIGHT
-	];
-	*/
-
-	vec3 position;
-	vec3 scale;
-	vec3 color = vec3(1f,1f,1f);
-	vec4 tex = vec4(0f,0f,1f,1f);
+class RandomCubes : Drawable {
 
 	/*
 		 4---6
@@ -52,16 +50,16 @@ struct Cube {
 		 5<--7
 	arrows define the winding vertex
 	*/
-	static const float vertices[8*3] = [
-		-0.5, -0.5,  -0.5,	//0
-		0.5, -0.5,  -0.5,	//1
-		-0.5,  0.5,  -0.5,	//2
-		0.5,  0.5,  -0.5,	//3
+	static const float vertices[4*8] = [
+		-0.5, -0.5, -0.5, 1,	//0
+		 0.5, -0.5, -0.5, 1,	//1
+		-0.5,  0.5, -0.5, 1,	//2
+		 0.5,  0.5, -0.5, 1,	//3
 
-		-0.5, -0.5,  0.5,	//4
-		0.5, -0.5,  0.5,	//5
-		-0.5,  0.5,  0.5,	//6
-		0.5,  0.5,  0.5,	//7
+		-0.5, -0.5,  0.5, 1,	//4
+		 0.5, -0.5,  0.5, 1,	//5
+		-0.5,  0.5,  0.5, 1,	//6
+		 0.5,  0.5,  0.5, 1,	//7
 	];
 	// counter clock winding for face culling
 	static const ubyte indices[(3*2)*6] = [
@@ -74,39 +72,103 @@ struct Cube {
 		7, 3, 2,  2, 6, 7, //Right
 	];
 
-	ubyte colors[8*4] = [
-		0,0,0,255, 		//0
-		255,0,0,255, 	//1
-		0,255,0,255, 	//2
-		0,0,255,255, 	//3
-
-		255,255,0,255, 	//4
-		255,0,255,255, 	//5
-		0,255,255,255,  //6
-		255,255,255,255,//7
+	static const float normals[3*6] = [
+		0, 0, -1,  0, 0, 1,
+		0, -1, 0,  1, 0, 0,
+		-1, 0, 0,  0, 1, 0
 	];
 
-	vec3[6] normals() {
-		typeof(return) ns;
-		const float* vx = vertices.ptr;
-		const ubyte* ix = indices.ptr;
-		for(int i; i < 6; i++) {
-		//for(int j; j < 2; j++) {
-			vec3 vix[3];
-			for(int vi; vi < 3; vi++) {
-				vix[vi] = vec3(vx[ix[i*6+vi]*3], vx[ix[i*6+vi]*3+1], vx[ix[i*6+vi]]*3+2);
-			}
-			vec3 a = vix[0];
-			vec3 b = vix[1];
-			vec3 c = vix[2];
+	this(uint amount, int range, vec3 basePosition, vec3 scale = vec3(1)) {
+		basePos = basePosition;
 
-			ns[i] = (b-a).cross(c-a);
+		Random rnd = Random(unpredictableSeed);
 
-		//}
+		vec4 positions[] = uninitializedArray!(vec4[])(amount);
+		ulong posSize = positions.length * typeof(positions[0]).sizeof;
+		foreach(ref pos; positions) {
+			pos = vec4(uniform(-range, range, rnd), 
+			           uniform(-range, range, rnd), 
+			           uniform(-range, range, rnd), 
+			           1);
 		}
-		return ns;
+
+		vec4u colors[] = uninitializedArray!(vec4u[])(amount);
+		ulong colSize = colors.length * typeof(colors[0]).sizeof;
+
+		foreach(ref col; colors) {
+			col = vec4u(cast(ubyte) uniform(0, 255, rnd), 
+			            cast(ubyte) uniform(0, 255, rnd), 
+			            cast(ubyte) uniform(0, 255, rnd), 
+			            cast(ubyte) 255);
+		}
+
+		cmd.instanceCount = amount;
+
+		createBuffers([&vbo, &ibo, &cbo]);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, vertices.sizeof + posSize + colSize, null, GL_STATIC_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.sizeof, vertices.ptr);
+		glBufferSubData(GL_ARRAY_BUFFER, vertices.sizeof, posSize, positions.ptr);
+		glBufferSubData(GL_ARRAY_BUFFER, vertices.sizeof + posSize, colSize, colors.ptr);
+
+		//printBuffer!
+
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.sizeof, indices.ptr, GL_STATIC_DRAW);
+
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, cbo);
+		glBufferData(GL_DRAW_INDIRECT_BUFFER, cmd.sizeof, &cmd, GL_STATIC_DRAW);
+
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		prog = createProgram(import("cubes.v.glsl"), import("cubes.f.glsl"));
+		glUseProgram(prog);
+
+		GLint atribBasePos = glGetAttribLocation(prog, "basePos");
+		glVertexAttribPointer(atribBasePos, 4, GL_FLOAT, GL_FALSE, 0, null);
+		glEnableVertexAttribArray(atribBasePos);
+
+		GLint atribCubePos = glGetAttribLocation(prog, "cubePos");
+		glVertexAttribPointer(atribCubePos, 4, GL_FLOAT, GL_FALSE, 0, cast(void*) vertices.sizeof);
+		glEnableVertexAttribArray(atribCubePos);
+		glVertexAttribDivisor(atribCubePos, 1);
+
+		GLint atribCubeColor = glGetAttribLocation(prog, "cubeColor");
+		glVertexAttribPointer(atribCubeColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, cast(void*) (vertices.sizeof + posSize));
+		glEnableVertexAttribArray(atribCubeColor);
+		glVertexAttribDivisor(atribCubeColor, 1);
+
+		glUseProgram(0);
 	}
-	/*
+
+	~this() {
+		destroyBuffers([vbo,ibo,cbo]);
+		glDeleteVertexArrays(1, &vao);
+	}
+
+	void draw() {
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, cbo);
+		glUniformMatrix4fv(glGetUniformLocation(prog, "model"), 1, GL_TRUE, (model * mat4.translation(basePos.x,basePos.y,basePos.z)).value_ptr);
+		glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_BYTE, null);
+	}
+
+	int program() const {
+		return prog;
+	}
+	mat4 model = mat4.identity;
+private:
+	GLuint vao, vbo, ibo, cbo;
+	GLint prog;
+
+	vec3 basePos;
+
+	DrawElementsIndrectCMD cmd = { count: 36 };
+/*
 	@property // 6 faces * 4 vx * 3 vec = 72
 	float[6*4*3] vertices() {
 		typeof(return) r = void;
@@ -126,6 +188,27 @@ struct Cube {
 			}
 	 }
 		return r;
+	}
+
+	@property
+	float[6*3] normals() {
+		typeof(return) ns;
+		const float* vx = vertices.ptr;
+		const ubyte* ix = indices.ptr;
+		for(int i; i < 6; i++) {
+			//for(int j; j < 2; j++) {
+			vec3 vix[3];
+			for(int vi; vi < 3; vi++) {
+				vix[vi] = vec3(vx[ix[i*6+vi]*3], vx[ix[i*6+vi]*3+1], vx[ix[i*6+vi]*3+2]);
+			}
+			vec3 a = vix[0];
+			vec3 b = vix[1];
+			vec3 c = vix[2];
+
+			ns[i*3..i*3+3] = ((b-a).cross(c-a)).normalized.vector[];
+			//}
+		}
+		return ns;
 	}
 */
 }
